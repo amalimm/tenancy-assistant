@@ -1,5 +1,6 @@
 "use client"
 
+import { CircleAlert } from "lucide-react"
 import { useMemo, useRef, useState } from "react"
 
 import {
@@ -75,6 +76,9 @@ export function AbsenceCalendarPanel({
     [tenants],
   )
   const canEditCalendar = tenants.length > 0 && Boolean(defaultTenantId)
+  const disabledCalendarMessage = canManageAll
+    ? "Create at least one tenant in the Tenants tab before recording away dates."
+    : "Ask a household admin to add a tenant record for your sign-in email before recording away dates."
   const selectedTenantLabel =
     tenantOptions.find((tenant) => tenant.value === selectedTenantId)?.label ??
     "No tenant selected"
@@ -104,6 +108,18 @@ export function AbsenceCalendarPanel({
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      {!canEditCalendar ? (
+        <div className="flex items-start gap-3 rounded-lg border border-dashed bg-muted/20 p-4 xl:col-span-2">
+          <CircleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          <div>
+            <p className="text-sm font-medium">Calendar setup required</p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              Away ranges are saved against a tenant record, so the calendar is
+              read-only until a tenant exists. {disabledCalendarMessage}
+            </p>
+          </div>
+        </div>
+      ) : null}
       <AbsenceCalendar
         absences={absences}
         canEdit={canEditCalendar}
@@ -171,7 +187,7 @@ export function AbsenceCalendarPanel({
         </div>
         {!canEditCalendar ? (
           <div className="rounded-md border border-dashed bg-background p-3 text-sm text-muted-foreground">
-            A tenant record must exist before away ranges can be added.
+            {disabledCalendarMessage}
           </div>
         ) : null}
         <Button

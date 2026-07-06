@@ -6,16 +6,27 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { authClient } from "@features/auth/auth-client"
 
+const SIGN_IN_BUTTON_VARIANT = {
+  DEFAULT: "default",
+  GHOST: "ghost",
+  OUTLINE: "outline",
+} as const
+
+type SignInButtonVariant =
+  (typeof SIGN_IN_BUTTON_VARIANT)[keyof typeof SIGN_IN_BUTTON_VARIANT]
+
 export interface SignInButtonProps {
   className?: string
   disabled?: boolean
   mode: "sign-in" | "sign-out"
+  variant?: SignInButtonVariant
 }
 
 export function SignInButton({
   className,
   disabled = false,
   mode,
+  variant,
 }: SignInButtonProps) {
   const [isPending, setIsPending] = useState(false)
 
@@ -58,7 +69,7 @@ export function SignInButton({
       className={className}
       onClick={handleClick}
       type="button"
-      variant={mode === "sign-out" ? "outline" : "default"}
+      variant={variant ?? (mode === "sign-out" ? "outline" : "default")}
     >
       {mode === "sign-in" ? <LogIn /> : <LogOut />}
       {label}

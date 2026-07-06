@@ -12,8 +12,20 @@ import { requireSession } from "@features/auth/auth-server"
 import { SignInButton } from "@features/auth/sign-in-button"
 import { ThemeToggle } from "@shared/ui/theme-toggle"
 
+const getUserInitials = (displayName: string) => {
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((namePart) => namePart[0]?.toUpperCase())
+    .join("")
+
+  return initials || "U"
+}
+
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await requireSession()
+  const userInitials = getUserInitials(session.user.name)
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -54,24 +66,30 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <PopoverTrigger asChild>
               <Button
                 aria-label="Open account menu"
-                className="gap-2"
-                size="sm"
+                className="h-9 gap-2 rounded-full border bg-background px-1.5 pr-2.5 shadow-none"
                 variant="outline"
               >
-                <Menu className="size-4" />
-                <span className="hidden sm:inline">Menu</span>
+                <span className="grid size-6 place-items-center rounded-full bg-muted font-mono text-[0.68rem] font-semibold">
+                  {userInitials}
+                </span>
+                <Menu className="size-4 text-muted-foreground" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-80 gap-0 p-0">
-              <div className="border-b p-3">
+            <PopoverContent
+              align="end"
+              className="w-64 gap-0 rounded-xl p-1.5 shadow-lg"
+              sideOffset={8}
+            >
+              <div className="px-2.5 py-2">
                 <p className="truncate text-sm font-medium">{session.user.name}</p>
                 <p className="truncate text-xs text-muted-foreground">
                   {session.user.email}
                 </p>
               </div>
-              <nav aria-label="Account menu" className="grid gap-1 p-2">
+              <div className="my-1 h-px bg-border" />
+              <nav aria-label="Account menu" className="grid gap-0.5">
                 <Link
-                  className="flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  className="flex h-8 items-center gap-2 rounded-md px-2 text-sm transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                   href="/"
                 >
                   <Home className="size-4 text-muted-foreground" />
@@ -79,19 +97,21 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                 </Link>
                 <Link
                   aria-current="page"
-                  className="flex items-center gap-2 rounded-md bg-muted px-2 py-2 text-sm font-medium transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  className="flex h-8 items-center gap-2 rounded-md bg-muted px-2 text-sm font-medium transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                   href="/dashboard"
                 >
                   <LayoutDashboard className="size-4 text-muted-foreground" />
                   Dashboard
                 </Link>
               </nav>
-              <div className="grid gap-2 border-t p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium">Theme</span>
-                  <ThemeToggle />
-                </div>
-                <SignInButton className="w-full justify-start" mode="sign-out" />
+              <div className="my-1 h-px bg-border" />
+              <div className="grid gap-0.5">
+                <ThemeToggle compact />
+                <SignInButton
+                  className="h-8 w-full justify-start px-2 text-muted-foreground hover:text-foreground"
+                  mode="sign-out"
+                  variant="ghost"
+                />
               </div>
             </PopoverContent>
           </Popover>
