@@ -97,12 +97,12 @@ export function AbsenceCalendar({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="secondary">Drag dates to mark away</Badge>
-        <Badge variant="outline">End date is exclusive</Badge>
+        <Badge variant="secondary">Away calendar</Badge>
         {currentTenantId ? <Badge variant="outline">Tenant linked</Badge> : null}
       </div>
       <FullCalendar
         editable={canEdit}
+        eventLongPressDelay={100}
         eventChange={handleEventChange}
         eventClick={handleEventClick}
         events={toEvents(absences)}
@@ -115,6 +115,8 @@ export function AbsenceCalendar({
         initialView="dayGridMonth"
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
         selectable={canEdit}
+        selectLongPressDelay={100}
+        selectMirror
         select={handleSelect}
       />
     </div>

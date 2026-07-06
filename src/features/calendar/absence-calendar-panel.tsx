@@ -13,6 +13,60 @@ import {
   type AbsenceCalendarTenant,
 } from "./absence-calendar"
 
+const DATE_INPUT_LENGTH = 10
+const DATE_LABEL_FORMATTER = new Intl.DateTimeFormat("en-MY", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+})
+
+const addDays = (dateValue: string, dayCount: number) => {
+  const [year, month, day] = dateValue.split("-").map(Number)
+
+  if (!year || !month || !day) {
+    return ""
+  }
+
+  const date = new Date(Date.UTC(year, month - 1, day + dayCount))
+
+  return date.toISOString().slice(0, DATE_INPUT_LENGTH)
+}
+
+const formatDateLabel = (dateValue: string) => {
+  const [year, month, day] = dateValue.split("-").map(Number)
+
+  if (!year || !month || !day) {
+    return dateValue
+  }
+
+  return DATE_LABEL_FORMATTER.format(new Date(Date.UTC(year, month - 1, day)))
+}
+
+const getInclusiveEndDate = (exclusiveEndDate: string) =>
+  exclusiveEndDate ? addDays(exclusiveEndDate, -1) : ""
+
+const getExclusiveEndDate = (inclusiveEndDate: string) =>
+  inclusiveEndDate ? addDays(inclusiveEndDate, 1) : ""
+
+const isValidExclusiveRange = (startDate: string, endDate: string) =>
+  startDate.length >= DATE_INPUT_LENGTH &&
+  endDate.length >= DATE_INPUT_LENGTH &&
+  endDate > startDate
+
+const formatRangeLabel = (startDate: string, exclusiveEndDate: string) => {
+  if (!isValidExclusiveRange(startDate, exclusiveEndDate)) {
+    return "No dates selected"
+  }
+
+  const inclusiveEndDate = getInclusiveEndDate(exclusiveEndDate)
+
+  if (startDate === inclusiveEndDate) {
+    return formatDateLabel(startDate)
+  }
+
+  return `${formatDateLabel(startDate)} to ${formatDateLabel(inclusiveEndDate)}`
+}
+
 export interface AbsenceCalendarPanelProps {
   absences: AbsenceCalendarRange[]
   canManageAll: boolean
@@ -54,14 +108,33 @@ export function AbsenceCalendarPanel({
   const selectedTenantLabel =
     tenantOptions.find((tenant) => tenant.value === selectedTenantId)?.label ??
     "No tenant selected"
-  const selectedRangeLabel =
-    selectedStartDate && selectedEndDate
-      ? `${selectedStartDate} to ${selectedEndDate}`
-      : "No range selected"
+  const selectedInclusiveEndDate = getInclusiveEndDate(selectedEndDate)
+  const hasValidSelectedRange = isValidExclusiveRange(
+    selectedStartDate,
+    selectedEndDate,
+  )
+  const selectedRangeLabel = formatRangeLabel(selectedStartDate, selectedEndDate)
 
   const handleSelectRange = (startDate: string, endDate: string) => {
     setSelectedStartDate(startDate)
     setSelectedEndDate(endDate)
+  }
+
+  const handleStartDateChange = (startDate: string) => {
+    setSelectedStartDate(startDate)
+
+    if (!startDate) {
+      setSelectedEndDate("")
+      return
+    }
+
+    if (!selectedEndDate || selectedEndDate <= startDate) {
+      setSelectedEndDate(addDays(startDate, 1))
+    }
+  }
+
+  const handleInclusiveEndDateChange = (inclusiveEndDate: string) => {
+    setSelectedEndDate(getExclusiveEndDate(inclusiveEndDate))
   }
 
   const handleDeleteAbsence = (absenceId: string) => {
@@ -99,6 +172,31 @@ export function AbsenceCalendarPanel({
         <div>
           <p className="text-sm font-medium">New away range</p>
           <p className="mt-1 text-sm text-muted-foreground">{selectedRangeLabel}</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+          <div className="grid gap-2">
+            <Label htmlFor="absenceStartDate">Away from</Label>
+            <Input
+              disabled={!canEditCalendar}
+              id="absenceStartDate"
+              onChange={(event) => handleStartDateChange(event.target.value)}
+              type="date"
+              value={selectedStartDate}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="absenceEndDate">Last day away</Label>
+            <Input
+              disabled={!canEditCalendar}
+              id="absenceEndDate"
+              min={selectedStartDate || undefined}
+              onChange={(event) =>
+                handleInclusiveEndDateChange(event.target.value)
+              }
+              type="date"
+              value={selectedInclusiveEndDate}
+            />
+          </div>
         </div>
         <div className="space-y-2">
           <Label htmlFor="tenantId">Tenant</Label>
@@ -138,7 +236,7 @@ export function AbsenceCalendarPanel({
           </div>
         ) : null}
         <Button
-          disabled={!selectedStartDate || !selectedEndDate || !selectedTenantId}
+          disabled={!hasValidSelectedRange || !selectedTenantId}
           type="submit"
         >
           Add away range
