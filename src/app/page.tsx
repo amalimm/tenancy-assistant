@@ -77,12 +77,7 @@ export default async function HomePage() {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             {session ? (
-              <Button asChild>
-                <Link href="/dashboard">
-                  Open dashboard
-                  <ArrowRight />
-                </Link>
-              </Button>
+              <Badge variant="outline">Signed in</Badge>
             ) : (
               <SignInButton disabled={!hasGoogleOAuthConfig} mode="sign-in" />
             )}
@@ -120,9 +115,6 @@ export default async function HomePage() {
               ) : (
                 <SignInButton disabled={!hasGoogleOAuthConfig} mode="sign-in" />
               )}
-              <Button asChild size="lg" variant="outline">
-                <Link href="#house-view">See house view</Link>
-              </Button>
             </div>
             <div className="mt-10 grid gap-5 sm:grid-cols-2">
               {features.map((feature) => {

@@ -259,10 +259,12 @@ function TenantRoster({
           </Badge>
         </CardAction>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent
+        className={tenants.length === 0 ? "flex min-h-0 flex-1 p-0" : "p-0"}
+      >
         {tenants.length === 0 ? (
-          <div className="p-4">
-            <Empty>
+          <div className="flex flex-1 p-4">
+            <Empty className="flex-1">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <UserPlus className="text-muted-foreground" />

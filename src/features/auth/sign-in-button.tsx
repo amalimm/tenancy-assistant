@@ -48,7 +48,12 @@ export function SignInButton({ disabled = false, mode }: SignInButtonProps) {
         : "Sign out"
 
   return (
-    <Button disabled={disabled || isPending} onClick={handleClick} type="button">
+    <Button
+      disabled={disabled || isPending}
+      onClick={handleClick}
+      type="button"
+      variant={mode === "sign-out" ? "outline" : "default"}
+    >
       {mode === "sign-in" ? <LogIn /> : <LogOut />}
       {label}
     </Button>
