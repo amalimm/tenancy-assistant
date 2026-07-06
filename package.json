@@ -23,7 +23,6 @@
     "@fullcalendar/daygrid": "^6.1.21",
     "@fullcalendar/interaction": "^6.1.21",
     "@fullcalendar/react": "^6.1.21",
-    "@fullcalendar/timegrid": "^6.1.21",
     "@libsql/client": "^0.17.4",
     "@vercel/blob": "^2.5.0",
     "better-auth": "^1.6.23",

@@ -6,7 +6,7 @@ Own absence calendar rendering and FullCalendar range normalization.
 
 ## Owns
 
-- Month/week absence calendar UI
+- Monthly absence calendar UI
 - FullCalendar start-inclusive and end-exclusive date handling
 - Calendar-specific forms and event mapping
 
@@ -17,7 +17,7 @@ Own absence calendar rendering and FullCalendar range normalization.
 ## Use This Folder When
 
 - Changing absence range interactions
-- Adding calendar views
+- Changing monthly calendar interactions
 - Integrating future scheduler/timeline behavior
 
 ## Do Not Put Here

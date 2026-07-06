@@ -5,9 +5,11 @@ import {
   CircleDollarSign,
   FileText,
   Home,
+  Mail,
   ReceiptText,
   Trash2,
   Upload,
+  UserPlus,
   Users,
 } from "lucide-react"
 
@@ -27,11 +29,19 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
@@ -114,6 +124,17 @@ const formatDateRange = (startDate: string, endDate: string | null) =>
   `${formatLocalDate(startDate)} to ${
     endDate ? formatLocalDate(addLocalDays(endDate, -1)) : "present"
   }`
+
+const getTenantInitials = (displayName: string) => {
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((namePart) => namePart[0]?.toUpperCase())
+    .join("")
+
+  return initials || "T"
+}
 
 const getOpenPaymentCount = (data: DashboardData) =>
   data.allocationRuns
@@ -198,6 +219,172 @@ function HouseholdSetupCard({ isAdmin }: { isAdmin: boolean }) {
         ) : null}
       </Card>
     </div>
+  )
+}
+
+function TenantStatusBadge({ isLinked }: { isLinked: boolean }) {
+  const Icon = isLinked ? CheckCircle2 : CircleAlert
+
+  return (
+    <Badge className="gap-1" variant={isLinked ? "secondary" : "outline"}>
+      <Icon />
+      {isLinked ? "Signed in" : "Needs sign-in"}
+    </Badge>
+  )
+}
+
+function TenantRoster({
+  isAdmin,
+  linkedTenantCount,
+  tenants,
+}: {
+  isAdmin: boolean
+  linkedTenantCount: number
+  tenants: DashboardData["tenants"]
+}) {
+  return (
+    <Card className="gap-0 py-0">
+      <CardHeader className="border-b py-4">
+        <div>
+          <CardTitle>Tenant roster</CardTitle>
+          <CardDescription>
+            Active tenancy dates, contact email, and account status.
+          </CardDescription>
+        </div>
+        <CardAction>
+          <Badge variant="outline">
+            {tenants.length === 0
+              ? "0 tenants"
+              : `${linkedTenantCount}/${tenants.length} signed in`}
+          </Badge>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="p-0">
+        {tenants.length === 0 ? (
+          <div className="p-4">
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <UserPlus className="text-muted-foreground" />
+                </EmptyMedia>
+                <EmptyTitle>No tenants added</EmptyTitle>
+                <EmptyDescription>
+                  Add each tenant with their Google email and tenancy period.
+                  New records stay in Needs sign-in until the tenant signs in.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </div>
+        ) : (
+          <Table className="min-w-[760px]">
+            <TableHeader className="bg-muted/40">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="h-11 px-4 text-muted-foreground">
+                  Tenant
+                </TableHead>
+                <TableHead className="h-11 px-4 text-muted-foreground">
+                  Email
+                </TableHead>
+                <TableHead className="h-11 px-4 text-muted-foreground">
+                  Tenancy
+                </TableHead>
+                <TableHead className="h-11 px-4 text-muted-foreground">
+                  Status
+                </TableHead>
+                {isAdmin ? (
+                  <TableHead className="h-11 px-4 text-right text-muted-foreground">
+                    Actions
+                  </TableHead>
+                ) : null}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tenants.map((tenant) => (
+                <TableRow key={tenant.id}>
+                  <TableCell className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-9 items-center justify-center rounded-lg bg-secondary font-mono text-xs font-semibold text-secondary-foreground">
+                        {getTenantInitials(tenant.displayName)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium">{tenant.displayName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Tenant record
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-muted-foreground">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Mail className="size-4 shrink-0" />
+                      <span className="truncate">{tenant.email}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
+                    {formatDateRange(
+                      tenant.tenancyStartDate,
+                      tenant.tenancyEndDate,
+                    )}
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
+                    <TenantStatusBadge isLinked={tenant.isLinked} />
+                  </TableCell>
+                  {isAdmin ? (
+                    <TableCell className="px-4 py-3 text-right">
+                      <form
+                        action={deleteTenantAction}
+                        className="hidden"
+                        id={`delete-tenant-${tenant.id}`}
+                      >
+                        <input
+                          name="tenantId"
+                          type="hidden"
+                          value={tenant.id}
+                        />
+                      </form>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            aria-label={`Remove ${tenant.displayName}`}
+                            size="sm"
+                            variant="destructive"
+                          >
+                            <Trash2 />
+                            Remove
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Remove {tenant.displayName}?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This removes the tenant record, away ranges, and
+                              bill split lines connected to them. Their sign-in
+                              account is not deleted.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive/10 text-destructive hover:bg-destructive/20"
+                              form={`delete-tenant-${tenant.id}`}
+                              type="submit"
+                            >
+                              Remove tenant
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  ) : null}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -345,154 +532,60 @@ export default async function DashboardPage() {
         </TabsContent>
 
         <TabsContent className="mt-4" value="tenants">
-          <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
+          <section
+            className={
+              isAdmin ? "grid gap-4 lg:grid-cols-[360px_1fr]" : "grid gap-4"
+            }
+          >
             {isAdmin ? (
-              <div className="rounded-lg border bg-card">
-                <div className="border-b px-5 py-4">
-                  <h2 className="font-semibold">Create tenant</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Invite a tenant with the email they use to sign in.
-                  </p>
-                </div>
-                <form action={createTenantAction} className="grid gap-4 p-5">
-                  <input
-                    name="householdId"
-                    type="hidden"
-                    value={data.household.id}
-                  />
-                  <div className="grid gap-2">
-                    <Label htmlFor="displayName">Name</Label>
-                    <Input id="displayName" name="displayName" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Google email</Label>
-                    <Input id="email" name="email" type="email" />
-                  </div>
-                  <DateRangeFields
-                    allowOpenRange
-                    endName="tenancyEndDate"
-                    id="tenancyPeriod"
-                    label="Tenancy period"
-                    placeholder="Select move-in date"
-                    startName="tenancyStartDate"
-                  />
-                  <div className="grid gap-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea id="notes" name="notes" />
-                  </div>
-                  <Button type="submit">
-                    <Users />
-                    Add tenant
-                  </Button>
-                </form>
-              </div>
+              <Card className="gap-0 py-0">
+                <CardHeader className="border-b py-4">
+                  <CardTitle>Create tenant</CardTitle>
+                  <CardDescription>
+                    Add a tenant with the email they use to sign in.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-5">
+                  <form action={createTenantAction} className="grid gap-4">
+                    <input
+                      name="householdId"
+                      type="hidden"
+                      value={data.household.id}
+                    />
+                    <div className="grid gap-2">
+                      <Label htmlFor="displayName">Name</Label>
+                      <Input id="displayName" name="displayName" />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="email">Google email</Label>
+                      <Input id="email" name="email" type="email" />
+                    </div>
+                    <DateRangeFields
+                      allowOpenRange
+                      endName="tenancyEndDate"
+                      id="tenancyPeriod"
+                      label="Tenancy period"
+                      placeholder="Select move-in date"
+                      startName="tenancyStartDate"
+                    />
+                    <div className="grid gap-2">
+                      <Label htmlFor="notes">Notes</Label>
+                      <Textarea id="notes" name="notes" />
+                    </div>
+                    <Button type="submit">
+                      <Users />
+                      Add tenant
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
             ) : null}
 
-            <div className="rounded-lg border bg-card">
-              <div className="border-b px-5 py-4">
-                <h2 className="font-semibold">Tenant roster</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Tenancy dates, account status, and contact email.
-                </p>
-              </div>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Tenancy</TableHead>
-                      <TableHead>Status</TableHead>
-                      {isAdmin ? (
-                        <TableHead className="text-right">Actions</TableHead>
-                      ) : null}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.tenants.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          className="h-24 text-muted-foreground"
-                          colSpan={isAdmin ? 5 : 4}
-                        >
-                          No tenants yet.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      data.tenants.map((tenant) => (
-                        <TableRow key={tenant.id}>
-                          <TableCell className="font-medium">
-                            {tenant.displayName}
-                          </TableCell>
-                          <TableCell>{tenant.email}</TableCell>
-                          <TableCell>
-                            {formatDateRange(
-                              tenant.tenancyStartDate,
-                              tenant.tenancyEndDate,
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={tenant.isLinked ? "default" : "outline"}
-                            >
-                              {tenant.isLinked ? "Signed in" : "Pending sign-in"}
-                            </Badge>
-                          </TableCell>
-                          {isAdmin ? (
-                            <TableCell className="text-right">
-                              <form
-                                action={deleteTenantAction}
-                                id={`delete-tenant-${tenant.id}`}
-                              >
-                                <input
-                                  name="tenantId"
-                                  type="hidden"
-                                  value={tenant.id}
-                                />
-                              </form>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    aria-label={`Delete ${tenant.displayName}`}
-                                    size="icon-sm"
-                                    variant="ghost"
-                                  >
-                                    <Trash2 className="text-muted-foreground" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                      Delete {tenant.displayName}?
-                                    </AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      This removes the tenant record, their away
-                                      ranges, and any bill split lines connected
-                                      to them. Their sign-in account is not
-                                      deleted.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      className="bg-destructive/10 text-destructive hover:bg-destructive/20"
-                                      form={`delete-tenant-${tenant.id}`}
-                                      type="submit"
-                                    >
-                                      Delete tenant
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </TableCell>
-                          ) : null}
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
+            <TenantRoster
+              isAdmin={isAdmin}
+              linkedTenantCount={linkedTenantCount}
+              tenants={data.tenants}
+            />
           </section>
         </TabsContent>
 
