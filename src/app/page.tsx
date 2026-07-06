@@ -1,17 +1,17 @@
-import { CalendarDays, ReceiptText, ShieldCheck, Users } from "lucide-react"
+import {
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  CircleAlert,
+  CircleDollarSign,
+  ReceiptText,
+  Users,
+} from "lucide-react"
 import Link from "next/link"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { hasGoogleOAuthConfig } from "@config/env"
 import { getSession } from "@features/auth/auth-server"
 import { SignInButton } from "@features/auth/sign-in-button"
@@ -19,24 +19,45 @@ import { ThemeToggle } from "@shared/ui/theme-toggle"
 
 const features = [
   {
-    description: "Tenants drag across dates to mark when they are away.",
+    description: "Mark away days from the calendar or date fields.",
     icon: CalendarDays,
-    title: "Away calendar",
+    title: "Away dates",
   },
   {
-    description: "Bills split by each tenant's present days in the billing cycle.",
+    description: "Split electricity costs by days actually spent at home.",
     icon: ReceiptText,
-    title: "Present-day billing",
+    title: "Fair bill splits",
   },
   {
-    description: "Admin creates tenants; tenant accounts are linked by email.",
+    description: "Track unpaid, partial, and settled shares in one place.",
+    icon: CircleDollarSign,
+    title: "Payment tracking",
+  },
+  {
+    description: "Give house admins and tenants the right level of access.",
     icon: Users,
-    title: "Admin-managed tenants",
+    title: "Household roles",
+  },
+] as const
+
+const previewTenants = [
+  {
+    amount: "RM 72.40",
+    days: "24 days",
+    name: "Maya",
+    status: "Paid",
   },
   {
-    description: "CASL abilities keep admin and tenant actions separated.",
-    icon: ShieldCheck,
-    title: "Role permissions",
+    amount: "RM 81.95",
+    days: "27 days",
+    name: "Daniel",
+    status: "Partial",
+  },
+  {
+    amount: "RM 63.10",
+    days: "21 days",
+    name: "Aina",
+    status: "Unpaid",
   },
 ] as const
 
@@ -44,20 +65,23 @@ export default async function HomePage() {
   const session = await getSession()
 
   return (
-    <main className="min-h-screen bg-background">
-      <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-8">
+    <main className="min-h-screen bg-background text-foreground">
+      <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-5 py-6 sm:px-6 lg:px-8">
         <header className="flex items-center justify-between gap-4">
-          <div>
-            <Badge variant="secondary">Sarawak shared house utility tracker</Badge>
-            <h1 className="mt-4 text-4xl font-semibold">
-              Tenancy Assistant
-            </h1>
-          </div>
+          <Link
+            className="text-sm font-semibold tracking-wide"
+            href="/"
+          >
+            Tenancy Assistant
+          </Link>
           <div className="flex items-center gap-2">
             <ThemeToggle />
             {session ? (
-              <Button asChild variant="outline">
-                <Link href="/dashboard">Open dashboard</Link>
+              <Button asChild>
+                <Link href="/dashboard">
+                  Open dashboard
+                  <ArrowRight />
+                </Link>
               </Button>
             ) : (
               <SignInButton disabled={!hasGoogleOAuthConfig} mode="sign-in" />
@@ -66,59 +90,117 @@ export default async function HomePage() {
         </header>
 
         {!hasGoogleOAuthConfig ? (
-          <Alert className="mt-8">
-            <ShieldCheck className="size-4" />
-            <AlertTitle>Google OAuth is not configured</AlertTitle>
+          <Alert className="mt-6 max-w-3xl">
+            <CircleAlert className="size-4" />
+            <AlertTitle>Sign-in is currently unavailable</AlertTitle>
             <AlertDescription>
-              Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_URL`,
-              and `BETTER_AUTH_SECRET` before signing in.
+              Contact the household admin to finish account access.
             </AlertDescription>
           </Alert>
         ) : null}
 
-        <div className="grid flex-1 items-center gap-8 py-12 lg:grid-cols-[1fr_420px]">
-          <div className="max-w-2xl">
-            <p className="text-lg leading-8 text-muted-foreground">
-              Manage tenants in one house, record away days, upload electricity
-              bills, calculate fair present-day shares, and track who has paid.
+        <div className="grid flex-1 items-center gap-10 py-10 lg:grid-cols-[minmax(0,1fr)_440px]">
+          <section className="max-w-2xl">
+            <Badge variant="secondary">Shared-house billing</Badge>
+            <h1 className="mt-5 text-5xl font-semibold leading-[1.05] text-balance sm:text-6xl">
+              Tenancy Assistant
+            </h1>
+            <p className="mt-5 max-w-xl text-lg leading-8 text-muted-foreground">
+              Track away dates, split house bills by actual days at home, and
+              settle payments from one shared dashboard.
             </p>
-            <Separator className="my-8" />
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              {session ? (
+                <Button asChild size="lg">
+                  <Link href="/dashboard">
+                    Open dashboard
+                    <ArrowRight />
+                  </Link>
+                </Button>
+              ) : (
+                <SignInButton disabled={!hasGoogleOAuthConfig} mode="sign-in" />
+              )}
+              <Button asChild size="lg" variant="outline">
+                <Link href="#house-view">See house view</Link>
+              </Button>
+            </div>
+            <div className="mt-10 grid gap-5 sm:grid-cols-2">
               {features.map((feature) => {
                 const Icon = feature.icon
 
                 return (
-                  <div className="flex gap-3" key={feature.title}>
-                    <div className="mt-1 flex size-8 items-center justify-center rounded-md bg-secondary">
+                  <article className="flex gap-3" key={feature.title}>
+                    <div className="mt-1 flex size-9 items-center justify-center rounded-lg bg-secondary">
                       <Icon className="size-4" />
                     </div>
                     <div>
-                      <h2 className="font-medium">{feature.title}</h2>
+                      <h2 className="font-semibold">{feature.title}</h2>
                       <p className="text-sm leading-6 text-muted-foreground">
                         {feature.description}
                       </p>
                     </div>
-                  </div>
+                  </article>
                 )
               })}
             </div>
-          </div>
+          </section>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>V1 workflow</CardTitle>
-              <CardDescription>
-                Built for the first electricity-bill split feature.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-muted-foreground">
-              <p>1. Admin signs in with Google.</p>
-              <p>2. Admin creates the household and tenant emails.</p>
-              <p>3. Tenants sign in and mark away ranges.</p>
-              <p>4. Admin creates a billing cycle and runs allocation.</p>
-              <p>5. Payments move from unpaid to partial or paid.</p>
-            </CardContent>
-          </Card>
+          <aside
+            className="rounded-lg border bg-card p-5 text-card-foreground shadow-sm"
+            id="house-view"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Current cycle
+                </p>
+                <h2 className="mt-1 text-2xl font-semibold">
+                  July electricity
+                </h2>
+              </div>
+              <Badge variant="outline">Ready to settle</Badge>
+            </div>
+            <div className="mt-5 grid grid-cols-3 gap-3 border-y py-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="mt-1 font-mono text-lg font-semibold">RM 217.45</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Away days</p>
+                <p className="mt-1 font-mono text-lg font-semibold">13</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Open</p>
+                <p className="mt-1 font-mono text-lg font-semibold">2</p>
+              </div>
+            </div>
+            <div className="mt-5 space-y-3">
+              {previewTenants.map((tenant) => (
+                <div
+                  className="grid grid-cols-[1fr_auto] gap-3 rounded-lg bg-muted/40 px-3 py-3"
+                  key={tenant.name}
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{tenant.name}</p>
+                      {tenant.status === "Paid" ? (
+                        <CheckCircle2 className="size-4 text-emerald-600" />
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {tenant.days} at home
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-mono font-semibold">{tenant.amount}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {tenant.status}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </aside>
         </div>
       </section>
     </main>

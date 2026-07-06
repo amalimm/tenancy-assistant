@@ -37,7 +37,7 @@ import { hasBlobConfig } from "@config/env"
 import { PAYMENT_STATUS, USER_ROLE } from "@db/schema"
 import { requireSession } from "@features/auth/auth-server"
 import { AbsenceCalendarPanel } from "@features/calendar/absence-calendar-panel"
-import { formatCurrency, formatDays } from "@shared/lib/format"
+import { formatCurrency, formatDays, formatLocalDate } from "@shared/lib/format"
 
 import {
   createAbsenceAction,
@@ -53,6 +53,41 @@ import {
 import { getDashboardData, type DashboardData } from "./data"
 
 const toAmountValue = (amountCents: number) => (amountCents / 100).toFixed(2)
+
+const USER_ROLE_LABEL = {
+  [USER_ROLE.ADMIN]: "Admin",
+  [USER_ROLE.TENANT]: "Tenant",
+} as const
+
+const PAYMENT_STATUS_LABEL = {
+  [PAYMENT_STATUS.PAID]: "Paid",
+  [PAYMENT_STATUS.PARTIAL]: "Partial",
+  [PAYMENT_STATUS.UNPAID]: "Unpaid",
+} as const
+
+const formatPaymentStatus = (status: string) => {
+  if (status === PAYMENT_STATUS.PAID) {
+    return PAYMENT_STATUS_LABEL[PAYMENT_STATUS.PAID]
+  }
+
+  if (status === PAYMENT_STATUS.PARTIAL) {
+    return PAYMENT_STATUS_LABEL[PAYMENT_STATUS.PARTIAL]
+  }
+
+  if (status === PAYMENT_STATUS.UNPAID) {
+    return PAYMENT_STATUS_LABEL[PAYMENT_STATUS.UNPAID]
+  }
+
+  return status
+}
+
+const formatRunStatus = (status: string) =>
+  status === "final" ? "Final" : status
+
+const formatDateRange = (startDate: string, endDate: string | null) =>
+  `${formatLocalDate(startDate)} to ${
+    endDate ? formatLocalDate(endDate) : "present"
+  }`
 
 const getOpenPaymentCount = (data: DashboardData) =>
   data.allocationRuns
@@ -109,12 +144,12 @@ function HouseholdSetupCard({ isAdmin }: { isAdmin: boolean }) {
       <Card>
         <CardHeader>
           <CardTitle>
-            {isAdmin ? "Create your household" : "Waiting for tenant setup"}
+            {isAdmin ? "Create your household" : "Waiting for household access"}
           </CardTitle>
           <CardDescription>
             {isAdmin
-              ? "Create the shared house record before adding tenants and bills."
-              : "An admin must create a tenant record using your Google email."}
+              ? "Start by adding the shared house. Then add tenants and bills."
+              : "An admin needs to add your tenant record with your sign-in email."}
           </CardDescription>
         </CardHeader>
         {isAdmin ? (
@@ -171,7 +206,7 @@ export default async function DashboardPage() {
     },
     {
       complete: Boolean(latestRun),
-      label: "Allocation run generated",
+      label: "Bill split calculated",
     },
   ] as const
 
@@ -182,11 +217,11 @@ export default async function DashboardPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{data.user.role}</Badge>
+                <Badge variant="secondary">{USER_ROLE_LABEL[data.user.role]}</Badge>
                 <Badge variant="outline">{data.household.name}</Badge>
               </div>
               <h1 className="mt-3 text-2xl font-semibold">
-                Household operations
+                Household dashboard
               </h1>
               {data.household.address ? (
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -196,8 +231,8 @@ export default async function DashboardPage() {
             </div>
             <div className="text-sm text-muted-foreground">
               {latestRun
-                ? `Latest allocation: ${formatCurrency(latestRun.totalAmountCents)}`
-                : "No allocation generated"}
+                ? `Latest bill split: ${formatCurrency(latestRun.totalAmountCents)}`
+                : "No bill split yet"}
             </div>
           </div>
 
@@ -218,7 +253,7 @@ export default async function DashboardPage() {
               value={String(data.billingCycles.length)}
             />
             <MetricTile
-              detail="Need admin follow-up"
+              detail="Awaiting settlement"
               label="Open payments"
               value={String(openPaymentCount)}
             />
@@ -228,7 +263,7 @@ export default async function DashboardPage() {
         <aside className="rounded-lg border bg-muted/20 p-4">
           <div className="flex items-center gap-2">
             <CircleDollarSign className="size-4" />
-            <h2 className="text-sm font-semibold">Workflow health</h2>
+            <h2 className="text-sm font-semibold">Setup progress</h2>
           </div>
           <div className="mt-3 grid gap-2">
             {setupItems.map((item) => (
@@ -263,7 +298,7 @@ export default async function DashboardPage() {
             <div className="border-b px-5 py-4">
               <h2 className="font-semibold">Away calendar</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Month and week view for tenant absence ranges.
+                Mark dates away and review current house absences.
               </p>
             </div>
             <div className="p-5">
@@ -290,7 +325,7 @@ export default async function DashboardPage() {
                 <div className="border-b px-5 py-4">
                   <h2 className="font-semibold">Create tenant</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Email must match the tenant Google account.
+                    Invite a tenant with the email they use to sign in.
                   </p>
                 </div>
                 <form action={createTenantAction} className="grid gap-4 p-5">
@@ -341,7 +376,7 @@ export default async function DashboardPage() {
               <div className="border-b px-5 py-4">
                 <h2 className="font-semibold">Tenant roster</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Account linkage, email, and tenancy period.
+                  Tenancy dates, account status, and contact email.
                 </p>
               </div>
               <div className="overflow-x-auto">
@@ -372,9 +407,9 @@ export default async function DashboardPage() {
                           </TableCell>
                           <TableCell>{tenant.email}</TableCell>
                           <TableCell>
-                            {tenant.tenancyStartDate}
+                            {formatLocalDate(tenant.tenancyStartDate)}
                             {tenant.tenancyEndDate
-                              ? ` to ${tenant.tenancyEndDate}`
+                              ? ` to ${formatLocalDate(tenant.tenancyEndDate)}`
                               : " onwards"}
                           </TableCell>
                           <TableCell>
@@ -401,7 +436,7 @@ export default async function DashboardPage() {
                 <div className="border-b px-5 py-4">
                   <h2 className="font-semibold">Create bill</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Amount is stored in cents for stable allocation.
+                    Add the bill period and total amount.
                   </p>
                 </div>
                 <form action={createBillingCycleAction} className="grid gap-4 p-5">
@@ -461,9 +496,9 @@ export default async function DashboardPage() {
               {!hasBlobConfig && isAdmin ? (
                 <Alert>
                   <Upload className="size-4" />
-                  <AlertTitle>Bill uploads disabled</AlertTitle>
+                  <AlertTitle>Bill uploads unavailable</AlertTitle>
                   <AlertDescription>
-                    Add `BLOB_READ_WRITE_TOKEN` to enable Vercel Blob uploads.
+                    Bill PDF uploads are not available for this workspace yet.
                   </AlertDescription>
                 </Alert>
               ) : null}
@@ -472,7 +507,7 @@ export default async function DashboardPage() {
                 <div className="rounded-lg border border-dashed bg-muted/20 p-8">
                   <h2 className="font-semibold">No bills recorded</h2>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Add one billing cycle before running an allocation.
+                    Create a bill to split costs by present days.
                   </p>
                 </div>
               ) : null}
@@ -483,7 +518,7 @@ export default async function DashboardPage() {
                     <div>
                       <h2 className="font-semibold">{cycle.name}</h2>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {cycle.startDate} to {cycle.endDate} ·{" "}
+                        {formatDateRange(cycle.startDate, cycle.endDate)} ·{" "}
                         {cycle.utilityProvider}
                       </p>
                     </div>
@@ -500,7 +535,7 @@ export default async function DashboardPage() {
                             value={cycle.id}
                           />
                           <Button size="sm" type="submit">
-                            Run allocation
+                            Calculate shares
                           </Button>
                         </form>
                         <form
@@ -521,7 +556,7 @@ export default async function DashboardPage() {
                           />
                           <Button disabled={!hasBlobConfig} size="sm" type="submit">
                             <Upload />
-                            Upload bill
+                            Attach bill
                           </Button>
                         </form>
                       </div>
@@ -555,10 +590,10 @@ export default async function DashboardPage() {
                         <div className="rounded-md border" key={run.id}>
                           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                             <div>
-                              <p className="font-medium">Allocation run</p>
+                              <p className="font-medium">Bill split</p>
                               <p className="text-sm text-muted-foreground">
                                 {formatDays(run.totalPresentDays)} present days ·{" "}
-                                {run.status}
+                                {formatRunStatus(run.status)}
                               </p>
                             </div>
                             <Badge variant="outline">
@@ -621,12 +656,12 @@ export default async function DashboardPage() {
                                             placeholder="Note"
                                           />
                                           <Button size="sm" type="submit">
-                                            Save
+                                            Update
                                           </Button>
                                         </form>
                                       ) : (
                                         <Badge variant="outline">
-                                          {line.paymentStatus}
+                                          {formatPaymentStatus(line.paymentStatus)}
                                         </Badge>
                                       )}
                                     </TableCell>
