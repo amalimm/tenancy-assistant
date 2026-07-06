@@ -1,0 +1,13 @@
+.env
+.env*.local
+.agents/
+.codex/
+.next/
+coverage/
+dist/
+node_modules/
+local.db
+playwright-report/
+storybook-static/
+test-results/
+*.tsbuildinfo
