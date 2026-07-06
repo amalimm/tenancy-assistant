@@ -6,11 +6,23 @@ import {
   FileText,
   Home,
   ReceiptText,
+  Trash2,
   Upload,
   Users,
 } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,6 +35,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -37,7 +56,13 @@ import { hasBlobConfig } from "@config/env"
 import { PAYMENT_STATUS, USER_ROLE } from "@db/schema"
 import { requireSession } from "@features/auth/auth-server"
 import { AbsenceCalendarPanel } from "@features/calendar/absence-calendar-panel"
-import { formatCurrency, formatDays, formatLocalDate } from "@shared/lib/format"
+import {
+  addLocalDays,
+  formatCurrency,
+  formatDays,
+  formatLocalDate,
+} from "@shared/lib/format"
+import { DateRangeFields } from "@shared/ui/date-range-fields"
 
 import {
   createAbsenceAction,
@@ -45,6 +70,7 @@ import {
   createHouseholdAction,
   createTenantAction,
   deleteAbsenceAction,
+  deleteTenantAction,
   markPaymentAction,
   runAllocationAction,
   updateAbsenceAction,
@@ -86,7 +112,7 @@ const formatRunStatus = (status: string) =>
 
 const formatDateRange = (startDate: string, endDate: string | null) =>
   `${formatLocalDate(startDate)} to ${
-    endDate ? formatLocalDate(endDate) : "present"
+    endDate ? formatLocalDate(addLocalDays(endDate, -1)) : "present"
   }`
 
 const getOpenPaymentCount = (data: DashboardData) =>
@@ -198,7 +224,7 @@ export default async function DashboardPage() {
     },
     {
       complete: linkedTenantCount > 0,
-      label: "At least one tenant account linked",
+      label: "At least one tenant has signed in",
     },
     {
       complete: data.billingCycles.length > 0,
@@ -238,7 +264,7 @@ export default async function DashboardPage() {
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricTile
-              detail={`${linkedTenantCount} linked account${linkedTenantCount === 1 ? "" : "s"}`}
+              detail={`${linkedTenantCount} signed-in account${linkedTenantCount === 1 ? "" : "s"}`}
               label="Tenants"
               value={String(data.tenants.length)}
             />
@@ -342,24 +368,14 @@ export default async function DashboardPage() {
                     <Label htmlFor="email">Google email</Label>
                     <Input id="email" name="email" type="email" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-2">
-                      <Label htmlFor="tenancyStartDate">Start</Label>
-                      <Input
-                        id="tenancyStartDate"
-                        name="tenancyStartDate"
-                        type="date"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="tenancyEndDate">End</Label>
-                      <Input
-                        id="tenancyEndDate"
-                        name="tenancyEndDate"
-                        type="date"
-                      />
-                    </div>
-                  </div>
+                  <DateRangeFields
+                    allowOpenRange
+                    endName="tenancyEndDate"
+                    id="tenancyPeriod"
+                    label="Tenancy period"
+                    placeholder="Select move-in date"
+                    startName="tenancyStartDate"
+                  />
                   <div className="grid gap-2">
                     <Label htmlFor="notes">Notes</Label>
                     <Textarea id="notes" name="notes" />
@@ -387,6 +403,9 @@ export default async function DashboardPage() {
                       <TableHead>Email</TableHead>
                       <TableHead>Tenancy</TableHead>
                       <TableHead>Status</TableHead>
+                      {isAdmin ? (
+                        <TableHead className="text-right">Actions</TableHead>
+                      ) : null}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -394,7 +413,7 @@ export default async function DashboardPage() {
                       <TableRow>
                         <TableCell
                           className="h-24 text-muted-foreground"
-                          colSpan={4}
+                          colSpan={isAdmin ? 5 : 4}
                         >
                           No tenants yet.
                         </TableCell>
@@ -407,18 +426,66 @@ export default async function DashboardPage() {
                           </TableCell>
                           <TableCell>{tenant.email}</TableCell>
                           <TableCell>
-                            {formatLocalDate(tenant.tenancyStartDate)}
-                            {tenant.tenancyEndDate
-                              ? ` to ${formatLocalDate(tenant.tenancyEndDate)}`
-                              : " onwards"}
+                            {formatDateRange(
+                              tenant.tenancyStartDate,
+                              tenant.tenancyEndDate,
+                            )}
                           </TableCell>
                           <TableCell>
                             <Badge
                               variant={tenant.isLinked ? "default" : "outline"}
                             >
-                              {tenant.isLinked ? "Linked" : "Invited"}
+                              {tenant.isLinked ? "Signed in" : "Pending sign-in"}
                             </Badge>
                           </TableCell>
+                          {isAdmin ? (
+                            <TableCell className="text-right">
+                              <form
+                                action={deleteTenantAction}
+                                id={`delete-tenant-${tenant.id}`}
+                              >
+                                <input
+                                  name="tenantId"
+                                  type="hidden"
+                                  value={tenant.id}
+                                />
+                              </form>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    aria-label={`Delete ${tenant.displayName}`}
+                                    size="icon-sm"
+                                    variant="ghost"
+                                  >
+                                    <Trash2 className="text-muted-foreground" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Delete {tenant.displayName}?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This removes the tenant record, their away
+                                      ranges, and any bill split lines connected
+                                      to them. Their sign-in account is not
+                                      deleted.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-destructive/10 text-destructive hover:bg-destructive/20"
+                                      form={`delete-tenant-${tenant.id}`}
+                                      type="submit"
+                                    >
+                                      Delete tenant
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </TableCell>
+                          ) : null}
                         </TableRow>
                       ))
                     )}
@@ -453,16 +520,13 @@ export default async function DashboardPage() {
                       placeholder="January 2026 electricity"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-2">
-                      <Label htmlFor="billStart">Start</Label>
-                      <Input id="billStart" name="startDate" type="date" />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="billEnd">End</Label>
-                      <Input id="billEnd" name="endDate" type="date" />
-                    </div>
-                  </div>
+                  <DateRangeFields
+                    endName="endDate"
+                    id="billPeriod"
+                    label="Bill period"
+                    placeholder="Select bill dates"
+                    startName="startDate"
+                  />
                   <div className="grid gap-2">
                     <Label htmlFor="totalAmount">Total amount</Label>
                     <Input
@@ -632,15 +696,25 @@ export default async function DashboardPage() {
                                             type="hidden"
                                             value={line.paymentId}
                                           />
-                                          <select
-                                            className="h-8 rounded-md border bg-background px-2 text-sm"
+                                          <Select
                                             defaultValue={line.paymentStatus}
                                             name="status"
                                           >
-                                            <option value="unpaid">Unpaid</option>
-                                            <option value="partial">Partial</option>
-                                            <option value="paid">Paid</option>
-                                          </select>
+                                            <SelectTrigger className="w-28">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value={PAYMENT_STATUS.UNPAID}>
+                                                {PAYMENT_STATUS_LABEL.unpaid}
+                                              </SelectItem>
+                                              <SelectItem value={PAYMENT_STATUS.PARTIAL}>
+                                                {PAYMENT_STATUS_LABEL.partial}
+                                              </SelectItem>
+                                              <SelectItem value={PAYMENT_STATUS.PAID}>
+                                                {PAYMENT_STATUS_LABEL.paid}
+                                              </SelectItem>
+                                            </SelectContent>
+                                          </Select>
                                           <Input
                                             className="w-24"
                                             defaultValue={toAmountValue(

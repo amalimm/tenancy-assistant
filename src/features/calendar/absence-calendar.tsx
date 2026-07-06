@@ -3,7 +3,6 @@
 import dayGridPlugin from "@fullcalendar/daygrid"
 import interactionPlugin from "@fullcalendar/interaction"
 import FullCalendar from "@fullcalendar/react"
-import timeGridPlugin from "@fullcalendar/timegrid"
 import type {
   DateSelectArg,
   EventChangeArg,
@@ -71,11 +70,7 @@ export function AbsenceCalendar({
       return
     }
 
-    const shouldDelete = window.confirm("Delete this away range?")
-
-    if (shouldDelete) {
-      onDeleteAbsence(click.event.id)
-    }
+    onDeleteAbsence(click.event.id)
   }
 
   const handleEventChange = (change: EventChangeArg) => {
@@ -109,11 +104,11 @@ export function AbsenceCalendar({
         headerToolbar={{
           left: "prev,next today",
           center: "title",
-          right: "dayGridMonth,timeGridWeek",
+          right: "",
         }}
         height="auto"
         initialView="dayGridMonth"
-        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+        plugins={[dayGridPlugin, interactionPlugin]}
         selectable={canEdit}
         selectLongPressDelay={100}
         selectMirror

@@ -69,6 +69,10 @@ const deleteAbsenceSchema = z.object({
   absenceId: z.string().min(1),
 })
 
+const deleteTenantSchema = z.object({
+  tenantId: z.string().min(1),
+})
+
 const createBillingCycleSchema = dateRangeSchema.extend({
   householdId: z.string().min(1),
   name: z.string().trim().min(1),
@@ -236,6 +240,41 @@ export const createTenantAction = async (formData: FormData) => {
     startDate: parsed.tenancyStartDate,
     tenantId,
   })
+
+  revalidatePath("/dashboard")
+}
+
+export const deleteTenantAction = async (formData: FormData) => {
+  const session = await requireRole([USER_ROLE.ADMIN])
+  requireAbility(session.user.role, APP_ACTION.DELETE, APP_SUBJECT.TENANT)
+  const parsed = deleteTenantSchema.parse({
+    tenantId: getString(formData, "tenantId"),
+  })
+  const [existingTenant] = await db
+    .select()
+    .from(tenant)
+    .where(eq(tenant.id, parsed.tenantId))
+    .limit(1)
+
+  if (!existingTenant) {
+    throw new Error("Tenant not found.")
+  }
+
+  if (
+    session.user.activeHouseholdId &&
+    existingTenant.householdId !== session.user.activeHouseholdId
+  ) {
+    throw new Error("Tenant does not belong to the active household.")
+  }
+
+  if (existingTenant.userId) {
+    await db
+      .update(user)
+      .set({ activeHouseholdId: null, updatedAt: new Date() })
+      .where(eq(user.id, existingTenant.userId))
+  }
+
+  await db.delete(tenant).where(eq(tenant.id, parsed.tenantId))
 
   revalidatePath("/dashboard")
 }

@@ -2,10 +2,28 @@
 
 import { useMemo, useRef, useState } from "react"
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { DateRangePicker } from "@shared/ui/date-range-picker"
 
 import {
   AbsenceCalendar,
@@ -13,59 +31,10 @@ import {
   type AbsenceCalendarTenant,
 } from "./absence-calendar"
 
-const DATE_INPUT_LENGTH = 10
-const DATE_LABEL_FORMATTER = new Intl.DateTimeFormat("en-MY", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-})
-
-const addDays = (dateValue: string, dayCount: number) => {
-  const [year, month, day] = dateValue.split("-").map(Number)
-
-  if (!year || !month || !day) {
-    return ""
-  }
-
-  const date = new Date(Date.UTC(year, month - 1, day + dayCount))
-
-  return date.toISOString().slice(0, DATE_INPUT_LENGTH)
-}
-
-const formatDateLabel = (dateValue: string) => {
-  const [year, month, day] = dateValue.split("-").map(Number)
-
-  if (!year || !month || !day) {
-    return dateValue
-  }
-
-  return DATE_LABEL_FORMATTER.format(new Date(Date.UTC(year, month - 1, day)))
-}
-
-const getInclusiveEndDate = (exclusiveEndDate: string) =>
-  exclusiveEndDate ? addDays(exclusiveEndDate, -1) : ""
-
-const getExclusiveEndDate = (inclusiveEndDate: string) =>
-  inclusiveEndDate ? addDays(inclusiveEndDate, 1) : ""
-
 const isValidExclusiveRange = (startDate: string, endDate: string) =>
-  startDate.length >= DATE_INPUT_LENGTH &&
-  endDate.length >= DATE_INPUT_LENGTH &&
+  startDate.length >= 10 &&
+  endDate.length >= 10 &&
   endDate > startDate
-
-const formatRangeLabel = (startDate: string, exclusiveEndDate: string) => {
-  if (!isValidExclusiveRange(startDate, exclusiveEndDate)) {
-    return "No dates selected"
-  }
-
-  const inclusiveEndDate = getInclusiveEndDate(exclusiveEndDate)
-
-  if (startDate === inclusiveEndDate) {
-    return formatDateLabel(startDate)
-  }
-
-  return `${formatDateLabel(startDate)} to ${formatDateLabel(inclusiveEndDate)}`
-}
 
 export interface AbsenceCalendarPanelProps {
   absences: AbsenceCalendarRange[]
@@ -95,6 +64,7 @@ export function AbsenceCalendarPanel({
   const [selectedStartDate, setSelectedStartDate] = useState("")
   const [selectedEndDate, setSelectedEndDate] = useState("")
   const [pendingDeleteId, setPendingDeleteId] = useState("")
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [pendingUpdate, setPendingUpdate] = useState({
     absenceId: "",
     endDate: "",
@@ -108,38 +78,19 @@ export function AbsenceCalendarPanel({
   const selectedTenantLabel =
     tenantOptions.find((tenant) => tenant.value === selectedTenantId)?.label ??
     "No tenant selected"
-  const selectedInclusiveEndDate = getInclusiveEndDate(selectedEndDate)
   const hasValidSelectedRange = isValidExclusiveRange(
     selectedStartDate,
     selectedEndDate,
   )
-  const selectedRangeLabel = formatRangeLabel(selectedStartDate, selectedEndDate)
 
   const handleSelectRange = (startDate: string, endDate: string) => {
     setSelectedStartDate(startDate)
     setSelectedEndDate(endDate)
   }
 
-  const handleStartDateChange = (startDate: string) => {
-    setSelectedStartDate(startDate)
-
-    if (!startDate) {
-      setSelectedEndDate("")
-      return
-    }
-
-    if (!selectedEndDate || selectedEndDate <= startDate) {
-      setSelectedEndDate(addDays(startDate, 1))
-    }
-  }
-
-  const handleInclusiveEndDateChange = (inclusiveEndDate: string) => {
-    setSelectedEndDate(getExclusiveEndDate(inclusiveEndDate))
-  }
-
   const handleDeleteAbsence = (absenceId: string) => {
     setPendingDeleteId(absenceId)
-    window.setTimeout(() => deleteFormRef.current?.requestSubmit(), 0)
+    setDeleteDialogOpen(true)
   }
 
   const handleMoveAbsence = (
@@ -169,51 +120,39 @@ export function AbsenceCalendarPanel({
       >
         <input name="startDate" type="hidden" value={selectedStartDate} />
         <input name="endDate" type="hidden" value={selectedEndDate} />
-        <div>
+        <div className="grid gap-2">
           <p className="text-sm font-medium">New away range</p>
-          <p className="mt-1 text-sm text-muted-foreground">{selectedRangeLabel}</p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-          <div className="grid gap-2">
-            <Label htmlFor="absenceStartDate">Away from</Label>
-            <Input
-              disabled={!canEditCalendar}
-              id="absenceStartDate"
-              onChange={(event) => handleStartDateChange(event.target.value)}
-              type="date"
-              value={selectedStartDate}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="absenceEndDate">Last day away</Label>
-            <Input
-              disabled={!canEditCalendar}
-              id="absenceEndDate"
-              min={selectedStartDate || undefined}
-              onChange={(event) =>
-                handleInclusiveEndDateChange(event.target.value)
-              }
-              type="date"
-              value={selectedInclusiveEndDate}
-            />
-          </div>
+          <DateRangePicker
+            disabled={!canEditCalendar}
+            endDate={selectedEndDate}
+            id="absenceDateRange"
+            onRangeChange={(range) => {
+              setSelectedStartDate(range.startDate)
+              setSelectedEndDate(range.endDate)
+            }}
+            placeholder="Select away dates"
+            startDate={selectedStartDate}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="tenantId">Tenant</Label>
           {canManageAll ? (
-            <select
-              className="h-8 w-full rounded-md border bg-background px-2 text-sm"
-              id="tenantId"
+            <Select
               name="tenantId"
-              onChange={(event) => setSelectedTenantId(event.target.value)}
+              onValueChange={setSelectedTenantId}
               value={selectedTenantId}
             >
-              {tenantOptions.map((tenant) => (
-                <option key={tenant.value} value={tenant.value}>
-                  {tenant.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full" id="tenantId">
+                <SelectValue placeholder="Select tenant" />
+              </SelectTrigger>
+              <SelectContent>
+                {tenantOptions.map((tenant) => (
+                  <SelectItem key={tenant.value} value={tenant.value}>
+                    {tenant.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           ) : (
             <>
               <Input readOnly value={selectedTenantLabel} />
@@ -246,6 +185,28 @@ export function AbsenceCalendarPanel({
       <form action={deleteAbsenceAction} className="hidden" ref={deleteFormRef}>
         <input name="absenceId" readOnly value={pendingDeleteId} />
       </form>
+      <AlertDialog
+        onOpenChange={setDeleteDialogOpen}
+        open={deleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete away range?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the selected away range from the calendar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive/10 text-destructive hover:bg-destructive/20"
+              onClick={() => deleteFormRef.current?.requestSubmit()}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <form action={updateAbsenceAction} className="hidden" ref={updateFormRef}>
         <input name="absenceId" readOnly value={pendingUpdate.absenceId} />
         <input name="startDate" readOnly value={pendingUpdate.startDate} />
