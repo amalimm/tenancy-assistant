@@ -66,6 +66,7 @@ import { hasBlobConfig } from "@config/env"
 import { PAYMENT_STATUS, USER_ROLE } from "@db/schema"
 import { requireSession } from "@features/auth/auth-server"
 import { AbsenceCalendarPanel } from "@features/calendar/absence-calendar-panel"
+import { CalendarHelpGuide } from "@features/calendar/calendar-help-guide"
 import {
   addLocalDays,
   formatCurrency,
@@ -510,11 +511,14 @@ export default async function DashboardPage() {
 
         <TabsContent className="mt-4" value="calendar">
           <section className="rounded-lg border bg-card">
-            <div className="border-b px-5 py-4">
-              <h2 className="font-semibold">Away calendar</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Mark dates away and review current house absences.
-              </p>
+            <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="font-semibold">Away calendar</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Mark dates away and review current house absences.
+                </p>
+              </div>
+              <CalendarHelpGuide />
             </div>
             <div className="p-5">
               <AbsenceCalendarPanel

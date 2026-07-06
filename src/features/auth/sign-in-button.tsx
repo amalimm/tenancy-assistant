@@ -7,11 +7,16 @@ import { Button } from "@/components/ui/button"
 import { authClient } from "@features/auth/auth-client"
 
 export interface SignInButtonProps {
+  className?: string
   disabled?: boolean
   mode: "sign-in" | "sign-out"
 }
 
-export function SignInButton({ disabled = false, mode }: SignInButtonProps) {
+export function SignInButton({
+  className,
+  disabled = false,
+  mode,
+}: SignInButtonProps) {
   const [isPending, setIsPending] = useState(false)
 
   const handleClick = async () => {
@@ -50,6 +55,7 @@ export function SignInButton({ disabled = false, mode }: SignInButtonProps) {
   return (
     <Button
       disabled={disabled || isPending}
+      className={className}
       onClick={handleClick}
       type="button"
       variant={mode === "sign-out" ? "outline" : "default"}

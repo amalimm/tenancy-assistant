@@ -1,7 +1,13 @@
-import { LayoutDashboard } from "lucide-react"
+import { Home, LayoutDashboard, Menu } from "lucide-react"
 import Link from "next/link"
 import type { ReactNode } from "react"
 
+import { Button } from "@/components/ui/button"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { requireSession } from "@features/auth/auth-server"
 import { SignInButton } from "@features/auth/sign-in-button"
 import { ThemeToggle } from "@shared/ui/theme-toggle"
@@ -44,16 +50,51 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               </Link>
             </nav>
           </div>
-          <div className="flex min-w-0 items-center gap-2">
-            <ThemeToggle />
-            <div className="hidden min-w-0 rounded-lg border bg-muted/30 px-3 py-1.5 text-right text-sm sm:block">
-              <p className="truncate font-medium leading-5">{session.user.name}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {session.user.email}
-              </p>
-            </div>
-            <SignInButton mode="sign-out" />
-          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                aria-label="Open account menu"
+                className="gap-2"
+                size="sm"
+                variant="outline"
+              >
+                <Menu className="size-4" />
+                <span className="hidden sm:inline">Menu</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 gap-0 p-0">
+              <div className="border-b p-3">
+                <p className="truncate text-sm font-medium">{session.user.name}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {session.user.email}
+                </p>
+              </div>
+              <nav aria-label="Account menu" className="grid gap-1 p-2">
+                <Link
+                  className="flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  href="/"
+                >
+                  <Home className="size-4 text-muted-foreground" />
+                  Home
+                </Link>
+                <Link
+                  aria-current="page"
+                  className="flex items-center gap-2 rounded-md bg-muted px-2 py-2 text-sm font-medium transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  href="/dashboard"
+                >
+                  <LayoutDashboard className="size-4 text-muted-foreground" />
+                  Dashboard
+                </Link>
+              </nav>
+              <div className="grid gap-2 border-t p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium">Theme</span>
+                  <ThemeToggle />
+                </div>
+                <SignInButton className="w-full justify-start" mode="sign-out" />
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </header>
       {children}
