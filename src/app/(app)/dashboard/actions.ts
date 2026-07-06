@@ -1,0 +1,496 @@
+"use server"
+
+import { and, eq, inArray, isNull } from "drizzle-orm"
+import { revalidatePath } from "next/cache"
+import { put } from "@vercel/blob"
+import { z } from "zod"
+
+import { hasBlobConfig } from "@config/env"
+import { db } from "@db/client"
+import {
+  absenceRange,
+  allocationLine,
+  allocationRun,
+  billUpload,
+  billingCycle,
+  household,
+  payment,
+  PAYMENT_STATUS,
+  tenant,
+  tenancyPeriod,
+  user,
+  USER_ROLE,
+  type UserRole,
+} from "@db/schema"
+import { calculateAllocation } from "@features/billing/allocation"
+import {
+  APP_ACTION,
+  APP_SUBJECT,
+  defineAbilityForRole,
+  type AppAction,
+  type AppSubject,
+} from "@features/auth/permissions"
+import { requireRole, requireSession } from "@features/auth/auth-server"
+
+const dateRangeSchema = z
+  .object({
+    endDate: z.string().min(10),
+    startDate: z.string().min(10),
+  })
+  .refine((range) => range.endDate > range.startDate, {
+    message: "End date must be after start date.",
+    path: ["endDate"],
+  })
+
+const createHouseholdSchema = z.object({
+  address: z.string().trim().optional(),
+  name: z.string().trim().min(1),
+})
+
+const createTenantSchema = z.object({
+  displayName: z.string().trim().min(1),
+  email: z.string().trim().email(),
+  householdId: z.string().min(1),
+  notes: z.string().trim().optional(),
+  tenancyEndDate: z.string().trim().optional(),
+  tenancyStartDate: z.string().min(10),
+})
+
+const absenceSchema = dateRangeSchema.extend({
+  reason: z.string().trim().optional(),
+  tenantId: z.string().min(1),
+})
+
+const updateAbsenceSchema = dateRangeSchema.extend({
+  absenceId: z.string().min(1),
+})
+
+const deleteAbsenceSchema = z.object({
+  absenceId: z.string().min(1),
+})
+
+const createBillingCycleSchema = dateRangeSchema.extend({
+  householdId: z.string().min(1),
+  name: z.string().trim().min(1),
+  notes: z.string().trim().optional(),
+  totalAmount: z.string().trim().min(1),
+  utilityProvider: z.string().trim().min(1).default("SEB"),
+})
+
+const runAllocationSchema = z.object({
+  billingCycleId: z.string().min(1),
+})
+
+const uploadBillSchema = z.object({
+  billingCycleId: z.string().min(1),
+})
+
+const markPaymentSchema = z.object({
+  amountPaid: z.string().trim().min(1),
+  notes: z.string().trim().optional(),
+  paymentId: z.string().min(1),
+  status: z.enum([
+    PAYMENT_STATUS.UNPAID,
+    PAYMENT_STATUS.PARTIAL,
+    PAYMENT_STATUS.PAID,
+  ]),
+})
+
+const getString = (formData: FormData, key: string) => {
+  const value = formData.get(key)
+
+  return typeof value === "string" ? value : ""
+}
+
+const parseAmountCents = (value: string) => {
+  const amount = Number(value)
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error("Amount must be a non-negative number.")
+  }
+
+  return Math.round(amount * 100)
+}
+
+const normalizeEmail = (email: string) => email.trim().toLowerCase()
+
+const createId = () => crypto.randomUUID()
+
+const getCurrentUserRole = async (userId: string): Promise<UserRole> => {
+  const [currentUser] = await db
+    .select()
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1)
+
+  return currentUser?.role ?? USER_ROLE.TENANT
+}
+
+const requireAbility = (
+  role: UserRole,
+  action: AppAction,
+  subject: AppSubject,
+) => {
+  const ability = defineAbilityForRole(role)
+
+  if (!ability.can(action, subject)) {
+    throw new Error("You do not have permission to perform this action.")
+  }
+}
+
+const getLinkedTenantId = async (userId: string, email: string) => {
+  const [linkedTenant] = await db
+    .select()
+    .from(tenant)
+    .where(eq(tenant.userId, userId))
+    .limit(1)
+
+  if (linkedTenant) {
+    return linkedTenant.id
+  }
+
+  const [emailTenant] = await db
+    .select()
+    .from(tenant)
+    .where(and(eq(tenant.email, normalizeEmail(email)), isNull(tenant.userId)))
+    .limit(1)
+
+  if (!emailTenant) {
+    return null
+  }
+
+  await db
+    .update(tenant)
+    .set({ userId, updatedAt: new Date() })
+    .where(eq(tenant.id, emailTenant.id))
+
+  return emailTenant.id
+}
+
+const assertWritableAbsenceTenant = async (tenantId: string) => {
+  const session = await requireSession()
+  const role = await getCurrentUserRole(session.user.id)
+
+  requireAbility(role, APP_ACTION.CREATE, APP_SUBJECT.ABSENCE)
+
+  if (role === USER_ROLE.ADMIN) {
+    return session
+  }
+
+  const linkedTenantId = await getLinkedTenantId(
+    session.user.id,
+    session.user.email,
+  )
+
+  if (linkedTenantId !== tenantId) {
+    throw new Error("Tenants can only manage their own away ranges.")
+  }
+
+  return session
+}
+
+export const createHouseholdAction = async (formData: FormData) => {
+  const session = await requireRole([USER_ROLE.ADMIN])
+  const parsed = createHouseholdSchema.parse({
+    address: getString(formData, "address"),
+    name: getString(formData, "name"),
+  })
+  const householdId = createId()
+
+  await db.insert(household).values({
+    address: parsed.address,
+    createdByUserId: session.user.id,
+    id: householdId,
+    name: parsed.name,
+  })
+  await db
+    .update(user)
+    .set({ activeHouseholdId: householdId, updatedAt: new Date() })
+    .where(eq(user.id, session.user.id))
+
+  revalidatePath("/dashboard")
+}
+
+export const createTenantAction = async (formData: FormData) => {
+  await requireRole([USER_ROLE.ADMIN])
+  const parsed = createTenantSchema.parse({
+    displayName: getString(formData, "displayName"),
+    email: getString(formData, "email"),
+    householdId: getString(formData, "householdId"),
+    notes: getString(formData, "notes"),
+    tenancyEndDate: getString(formData, "tenancyEndDate"),
+    tenancyStartDate: getString(formData, "tenancyStartDate"),
+  })
+  const tenantId = createId()
+
+  await db.insert(tenant).values({
+    displayName: parsed.displayName,
+    email: normalizeEmail(parsed.email),
+    householdId: parsed.householdId,
+    id: tenantId,
+    notes: parsed.notes,
+  })
+  await db.insert(tenancyPeriod).values({
+    endDate: parsed.tenancyEndDate || null,
+    id: createId(),
+    startDate: parsed.tenancyStartDate,
+    tenantId,
+  })
+
+  revalidatePath("/dashboard")
+}
+
+export const createAbsenceAction = async (formData: FormData) => {
+  const parsed = absenceSchema.parse({
+    endDate: getString(formData, "endDate"),
+    reason: getString(formData, "reason"),
+    startDate: getString(formData, "startDate"),
+    tenantId: getString(formData, "tenantId"),
+  })
+  const session = await assertWritableAbsenceTenant(parsed.tenantId)
+
+  await db.insert(absenceRange).values({
+    createdByUserId: session.user.id,
+    endDate: parsed.endDate,
+    id: createId(),
+    reason: parsed.reason,
+    startDate: parsed.startDate,
+    tenantId: parsed.tenantId,
+  })
+
+  revalidatePath("/dashboard")
+}
+
+export const updateAbsenceAction = async (formData: FormData) => {
+  const parsed = updateAbsenceSchema.parse({
+    absenceId: getString(formData, "absenceId"),
+    endDate: getString(formData, "endDate"),
+    startDate: getString(formData, "startDate"),
+  })
+  const [existingAbsence] = await db
+    .select()
+    .from(absenceRange)
+    .where(eq(absenceRange.id, parsed.absenceId))
+    .limit(1)
+
+  if (!existingAbsence) {
+    throw new Error("Away range not found.")
+  }
+
+  await assertWritableAbsenceTenant(existingAbsence.tenantId)
+  await db
+    .update(absenceRange)
+    .set({
+      endDate: parsed.endDate,
+      startDate: parsed.startDate,
+      updatedAt: new Date(),
+    })
+    .where(eq(absenceRange.id, parsed.absenceId))
+
+  revalidatePath("/dashboard")
+}
+
+export const deleteAbsenceAction = async (formData: FormData) => {
+  const parsed = deleteAbsenceSchema.parse({
+    absenceId: getString(formData, "absenceId"),
+  })
+  const [existingAbsence] = await db
+    .select()
+    .from(absenceRange)
+    .where(eq(absenceRange.id, parsed.absenceId))
+    .limit(1)
+
+  if (!existingAbsence) {
+    throw new Error("Away range not found.")
+  }
+
+  await assertWritableAbsenceTenant(existingAbsence.tenantId)
+  await db.delete(absenceRange).where(eq(absenceRange.id, parsed.absenceId))
+
+  revalidatePath("/dashboard")
+}
+
+export const createBillingCycleAction = async (formData: FormData) => {
+  await requireRole([USER_ROLE.ADMIN])
+  const parsed = createBillingCycleSchema.parse({
+    endDate: getString(formData, "endDate"),
+    householdId: getString(formData, "householdId"),
+    name: getString(formData, "name"),
+    notes: getString(formData, "notes"),
+    startDate: getString(formData, "startDate"),
+    totalAmount: getString(formData, "totalAmount"),
+    utilityProvider: getString(formData, "utilityProvider") || "SEB",
+  })
+
+  await db.insert(billingCycle).values({
+    endDate: parsed.endDate,
+    householdId: parsed.householdId,
+    id: createId(),
+    name: parsed.name,
+    notes: parsed.notes,
+    startDate: parsed.startDate,
+    totalAmountCents: parseAmountCents(parsed.totalAmount),
+    utilityProvider: parsed.utilityProvider,
+  })
+
+  revalidatePath("/dashboard")
+}
+
+export const runAllocationAction = async (formData: FormData) => {
+  const session = await requireRole([USER_ROLE.ADMIN])
+  const parsed = runAllocationSchema.parse({
+    billingCycleId: getString(formData, "billingCycleId"),
+  })
+  const [cycle] = await db
+    .select()
+    .from(billingCycle)
+    .where(eq(billingCycle.id, parsed.billingCycleId))
+    .limit(1)
+
+  if (!cycle) {
+    throw new Error("Billing cycle not found.")
+  }
+
+  const tenantRows = await db
+    .select()
+    .from(tenant)
+    .where(eq(tenant.householdId, cycle.householdId))
+  const tenantIds = tenantRows.map((tenantRow) => tenantRow.id)
+  const periodRows =
+    tenantIds.length > 0
+      ? await db
+          .select()
+          .from(tenancyPeriod)
+          .where(inArray(tenancyPeriod.tenantId, tenantIds))
+      : []
+  const absenceRows =
+    tenantIds.length > 0
+      ? await db
+          .select()
+          .from(absenceRange)
+          .where(inArray(absenceRange.tenantId, tenantIds))
+      : []
+  const periodsByTenantId = new Map(
+    periodRows.map((period) => [period.tenantId, period]),
+  )
+  const absencesByTenantId = new Map<string, typeof absenceRows>()
+
+  for (const absence of absenceRows) {
+    const existingAbsences = absencesByTenantId.get(absence.tenantId) ?? []
+
+    existingAbsences.push(absence)
+    absencesByTenantId.set(absence.tenantId, existingAbsences)
+  }
+
+  const allocation = calculateAllocation({
+    cycleEndDate: cycle.endDate,
+    cycleStartDate: cycle.startDate,
+    tenants: tenantRows.map((tenantRow) => {
+      const period = periodsByTenantId.get(tenantRow.id)
+
+      if (!period) {
+        throw new Error(`Missing tenancy period for ${tenantRow.displayName}.`)
+      }
+
+      return {
+        absenceRanges: (absencesByTenantId.get(tenantRow.id) ?? []).map(
+          (absence) => ({
+            endDate: absence.endDate,
+            startDate: absence.startDate,
+          }),
+        ),
+        displayName: tenantRow.displayName,
+        tenantId: tenantRow.id,
+        tenancyEndDate: period.endDate,
+        tenancyStartDate: period.startDate,
+      }
+    }),
+    totalAmountCents: cycle.totalAmountCents,
+  })
+  const allocationRunId = createId()
+
+  await db.insert(allocationRun).values({
+    billingCycleId: cycle.id,
+    createdByUserId: session.user.id,
+    id: allocationRunId,
+    status: "final",
+    totalAmountCents: allocation.totalAmountCents,
+    totalPresentDays: allocation.totalPresentDays,
+  })
+
+  for (const line of allocation.lines) {
+    const allocationLineId = createId()
+
+    await db.insert(allocationLine).values({
+      allocationRunId,
+      amountCents: line.amountCents,
+      id: allocationLineId,
+      presentDays: line.presentDays,
+      tenantId: line.tenantId,
+    })
+    await db.insert(payment).values({
+      allocationLineId,
+      amountPaidCents: 0,
+      id: createId(),
+      status: PAYMENT_STATUS.UNPAID,
+    })
+  }
+
+  revalidatePath("/dashboard")
+}
+
+export const uploadBillAction = async (formData: FormData) => {
+  const session = await requireRole([USER_ROLE.ADMIN])
+  const parsed = uploadBillSchema.parse({
+    billingCycleId: getString(formData, "billingCycleId"),
+  })
+  const fileValue = formData.get("billFile")
+
+  if (!hasBlobConfig) {
+    throw new Error("Vercel Blob is not configured.")
+  }
+
+  if (!(fileValue instanceof File) || fileValue.size === 0) {
+    throw new Error("Choose a bill file to upload.")
+  }
+
+  const blob = await put(`bills/${parsed.billingCycleId}/${fileValue.name}`, fileValue, {
+    access: "public",
+    addRandomSuffix: true,
+  })
+
+  await db.insert(billUpload).values({
+    billingCycleId: parsed.billingCycleId,
+    contentType: fileValue.type || null,
+    fileName: fileValue.name,
+    fileUrl: blob.url,
+    id: createId(),
+    sizeBytes: fileValue.size,
+    uploadedByUserId: session.user.id,
+  })
+
+  revalidatePath("/dashboard")
+}
+
+export const markPaymentAction = async (formData: FormData) => {
+  await requireRole([USER_ROLE.ADMIN])
+  const parsed = markPaymentSchema.parse({
+    amountPaid: getString(formData, "amountPaid"),
+    notes: getString(formData, "notes"),
+    paymentId: getString(formData, "paymentId"),
+    status: getString(formData, "status"),
+  })
+
+  await db
+    .update(payment)
+    .set({
+      amountPaidCents: parseAmountCents(parsed.amountPaid),
+      notes: parsed.notes,
+      paidAt: parsed.status === PAYMENT_STATUS.PAID ? new Date() : null,
+      status: parsed.status,
+      updatedAt: new Date(),
+    })
+    .where(eq(payment.id, parsed.paymentId))
+
+  revalidatePath("/dashboard")
+}
