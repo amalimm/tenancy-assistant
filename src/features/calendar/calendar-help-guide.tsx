@@ -2,17 +2,17 @@ import { CalendarDays, Move, MousePointer2, Trash2 } from "lucide-react"
 
 const calendarHelpItems = [
   {
-    description: "Drag across calendar days to prefill the new away range.",
+    description: "Drag to select dates.",
     icon: MousePointer2,
     title: "Select dates",
   },
   {
-    description: "Choose the tenant, add an optional reason, then save the range.",
+    description: "Choose a tenant, add a reason, then save.",
     icon: CalendarDays,
     title: "Add details",
   },
   {
-    description: "Drag an existing block to move it, or click it to delete it.",
+    description: "Drag to move, click to delete.",
     icon: Move,
     title: "Edit entries",
   },
@@ -38,7 +38,7 @@ export function CalendarHelpGuide() {
           <div>
             <p className="font-medium">Using the away calendar</p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              Ranges end on the return date, so the return day is not counted.
+              Return days are not counted.
             </p>
           </div>
         </div>
@@ -61,7 +61,7 @@ export function CalendarHelpGuide() {
         </div>
         <div className="mt-3 flex items-start gap-2 rounded-md bg-muted/50 p-2 text-xs leading-5 text-muted-foreground">
           <Trash2 className="mt-0.5 size-3.5 shrink-0" />
-          <p>Deleting asks for confirmation before the range is removed.</p>
+          <p>Deletes always ask for confirmation.</p>
         </div>
       </div>
     </div>

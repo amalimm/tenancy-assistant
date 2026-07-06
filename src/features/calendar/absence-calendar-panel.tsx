@@ -77,8 +77,8 @@ export function AbsenceCalendarPanel({
   )
   const canEditCalendar = tenants.length > 0 && Boolean(defaultTenantId)
   const disabledCalendarMessage = canManageAll
-    ? "Create at least one tenant in the Tenants tab before recording away dates."
-    : "Ask a household admin to add a tenant record for your sign-in email before recording away dates."
+    ? "Add a tenant to use the calendar."
+    : "Ask an admin to add your tenant profile."
   const selectedTenantLabel =
     tenantOptions.find((tenant) => tenant.value === selectedTenantId)?.label ??
     "No tenant selected"
@@ -112,10 +112,9 @@ export function AbsenceCalendarPanel({
         <div className="flex items-start gap-3 rounded-lg border border-dashed bg-muted/20 p-4 xl:col-span-2">
           <CircleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           <div>
-            <p className="text-sm font-medium">Calendar setup required</p>
+            <p className="text-sm font-medium">Add a tenant first</p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Away ranges are saved against a tenant record, so the calendar is
-              read-only until a tenant exists. {disabledCalendarMessage}
+              {disabledCalendarMessage}
             </p>
           </div>
         </div>
@@ -187,7 +186,7 @@ export function AbsenceCalendarPanel({
         </div>
         {!canEditCalendar ? (
           <div className="rounded-md border border-dashed bg-background p-3 text-sm text-muted-foreground">
-            {disabledCalendarMessage}
+            Add a tenant before saving away dates.
           </div>
         ) : null}
         <Button
@@ -209,7 +208,7 @@ export function AbsenceCalendarPanel({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete away range?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the selected away range from the calendar.
+              This removes it from the calendar.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

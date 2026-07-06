@@ -196,8 +196,8 @@ function HouseholdSetupCard({ isAdmin }: { isAdmin: boolean }) {
           </CardTitle>
           <CardDescription>
             {isAdmin
-              ? "Start by adding the shared house. Then add tenants and bills."
-              : "An admin needs to add your tenant record with your sign-in email."}
+              ? "Add the shared house, then tenants and bills."
+              : "Ask an admin to add your tenant record."}
           </CardDescription>
         </CardHeader>
         {isAdmin ? (
@@ -249,7 +249,7 @@ function TenantRoster({
         <div>
           <CardTitle>Tenant roster</CardTitle>
           <CardDescription>
-            Active tenancy dates, contact email, and account status.
+            Tenancy dates, email, and status.
           </CardDescription>
         </div>
         <CardAction>
@@ -272,8 +272,7 @@ function TenantRoster({
                 </EmptyMedia>
                 <EmptyTitle>No tenants added</EmptyTitle>
                 <EmptyDescription>
-                  Add each tenant with their Google email and tenancy period.
-                  New records stay in Needs sign-in until the tenant signs in.
+                  Add tenants with their email and tenancy dates.
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -362,9 +361,8 @@ function TenantRoster({
                               Remove {tenant.displayName}?
                             </AlertDialogTitle>
                             <AlertDialogDescription>
-                              This removes the tenant record, away ranges, and
-                              bill split lines connected to them. Their sign-in
-                              account is not deleted.
+                              This removes the tenant, away dates, and bill
+                              splits. The sign-in account stays.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -515,7 +513,7 @@ export default async function DashboardPage() {
               <div>
                 <h2 className="font-semibold">Away calendar</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Mark dates away and review current house absences.
+                  Mark away dates and review current absences.
                 </p>
               </div>
               <CalendarHelpGuide />
@@ -602,7 +600,7 @@ export default async function DashboardPage() {
                 <div className="border-b px-5 py-4">
                   <h2 className="font-semibold">Create bill</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Add the bill period and total amount.
+                    Add the bill period and amount.
                   </p>
                 </div>
                 <form action={createBillingCycleAction} className="grid gap-4 p-5">
@@ -661,7 +659,7 @@ export default async function DashboardPage() {
                   <Upload className="size-4" />
                   <AlertTitle>Bill uploads unavailable</AlertTitle>
                   <AlertDescription>
-                    Bill PDF uploads are not available for this workspace yet.
+                    Bill uploads are not configured.
                   </AlertDescription>
                 </Alert>
               ) : null}
@@ -670,7 +668,7 @@ export default async function DashboardPage() {
                 <div className="rounded-lg border border-dashed bg-muted/20 p-8">
                   <h2 className="font-semibold">No bills recorded</h2>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Create a bill to split costs by present days.
+                    Create a bill to split costs.
                   </p>
                 </div>
               ) : null}

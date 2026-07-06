@@ -24,7 +24,7 @@ const features = [
     title: "Away dates",
   },
   {
-    description: "Split electricity costs by days actually spent at home.",
+    description: "Split electricity bills by days at home.",
     icon: ReceiptText,
     title: "Fair bill splits",
   },
@@ -34,7 +34,7 @@ const features = [
     title: "Payment tracking",
   },
   {
-    description: "Give house admins and tenants the right level of access.",
+    description: "Set permissions for admins and tenants.",
     icon: Users,
     title: "Household roles",
   },
@@ -87,9 +87,9 @@ export default async function HomePage() {
         {!hasGoogleOAuthConfig ? (
           <Alert className="mt-6 max-w-3xl">
             <CircleAlert className="size-4" />
-            <AlertTitle>Sign-in is currently unavailable</AlertTitle>
+            <AlertTitle>Sign-in unavailable</AlertTitle>
             <AlertDescription>
-              Contact the household admin to finish account access.
+              Ask your household admin for access.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -101,8 +101,7 @@ export default async function HomePage() {
               Tenancy Assistant
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-8 text-muted-foreground">
-              Track away dates, split house bills by actual days at home, and
-              settle payments from one shared dashboard.
+              Track away dates, split bills, and settle payments.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               {session ? (
