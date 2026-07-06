@@ -11,7 +11,6 @@ import {
   UserPlus,
 } from "lucide-react"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +34,7 @@ import {
 } from "@/components/ui/card"
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -155,7 +155,7 @@ function MetricTile({
   value: string
 }) {
   return (
-    <div className="rounded-lg border bg-card px-4 py-3">
+    <div className="motion-lift rounded-lg border bg-card px-4 py-3">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className="mt-2 font-mono text-2xl font-semibold">{value}</p>
       <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
@@ -173,7 +173,7 @@ function WorkflowItem({
   const Icon = complete ? CheckCircle2 : CircleAlert
 
   return (
-    <div className="flex items-center gap-3 rounded-md border bg-background px-3 py-2">
+    <div className="motion-lift flex items-center gap-3 rounded-md border bg-background px-3 py-2">
       <Icon
         className={
           complete ? "size-4 text-emerald-600" : "size-4 text-muted-foreground"
@@ -402,7 +402,13 @@ export default async function DashboardPage() {
 
   const latestRun = getLatestAllocationRun(data)
   const openPaymentCount = getOpenPaymentCount(data)
-  const linkedTenantCount = data.tenants.filter((tenant) => tenant.isLinked).length
+  const linkedTenantCount = data.tenants.filter(
+    (tenant) => tenant.isLinked,
+  ).length
+  const billUploadCount = data.billingCycles.reduce(
+    (count, cycle) => count + cycle.uploads.length,
+    0,
+  )
   const setupItems = [
     {
       complete: data.tenants.length > 0,
@@ -423,9 +429,9 @@ export default async function DashboardPage() {
   ] as const
 
   return (
-    <div className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-5">
+    <div className="motion-stagger mx-auto grid w-full max-w-7xl gap-5 px-4 py-5">
       <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="rounded-lg border bg-card p-5">
+        <div className="motion-fade-up rounded-lg border bg-card p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -472,7 +478,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <aside className="rounded-lg border bg-muted/20 p-4">
+        <aside className="motion-fade-up rounded-lg border bg-muted/20 p-4">
           <div className="flex items-center gap-2">
             <CircleDollarSign className="size-4" />
             <h2 className="text-sm font-semibold">Setup progress</h2>
@@ -575,9 +581,15 @@ export default async function DashboardPage() {
           </section>
         }
         billing={
-          <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
+          <section
+            className={
+              isAdmin
+                ? "grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]"
+                : "grid gap-4"
+            }
+          >
             {isAdmin ? (
-              <div className="rounded-lg border bg-card">
+              <div className="motion-fade-up rounded-lg border bg-card lg:sticky lg:top-20 lg:self-start">
                 <div className="border-b px-5 py-4">
                   <h2 className="font-semibold">Create bill</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -634,28 +646,78 @@ export default async function DashboardPage() {
               </div>
             ) : null}
 
-            <div className="grid gap-4">
-              {!hasBlobConfig && isAdmin ? (
-                <Alert>
-                  <Upload className="size-4" />
-                  <AlertTitle>Bill uploads unavailable</AlertTitle>
-                  <AlertDescription>
-                    Bill uploads are not configured.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
+            <div className="grid content-start gap-4">
+              <section className="motion-fade-up rounded-lg border bg-card p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h2 className="font-semibold">Billing overview</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Cycles, payments, and attachments.
+                    </p>
+                  </div>
+                  <Badge
+                    className="w-fit"
+                    variant={hasBlobConfig ? "secondary" : "outline"}
+                  >
+                    {hasBlobConfig ? "Uploads ready" : "Uploads off"}
+                  </Badge>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <MetricTile
+                    detail="Recorded cycles"
+                    label="Bills"
+                    value={String(data.billingCycles.length)}
+                  />
+                  <MetricTile
+                    detail="Awaiting settlement"
+                    label="Open payments"
+                    value={String(openPaymentCount)}
+                  />
+                  <MetricTile
+                    detail={hasBlobConfig ? "Attached files" : "Not configured"}
+                    label="Uploads"
+                    value={String(billUploadCount)}
+                  />
+                </div>
+
+                {!hasBlobConfig && isAdmin ? (
+                  <div className="mt-4 flex items-start gap-3 rounded-lg border border-dashed bg-muted/20 p-3">
+                    <Upload className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">Uploads are off</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Configure bill storage to attach files.
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+              </section>
 
               {data.billingCycles.length === 0 ? (
-                <div className="rounded-lg border border-dashed bg-muted/20 p-8">
-                  <h2 className="font-semibold">No bills recorded</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Create a bill to split costs.
-                  </p>
-                </div>
+                <Empty className="motion-fade-up min-h-[260px] bg-card">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <ReceiptText className="text-muted-foreground" />
+                    </EmptyMedia>
+                    <EmptyTitle>No bills yet</EmptyTitle>
+                    <EmptyDescription>
+                      Create a bill to calculate shares.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                  {isAdmin ? (
+                    <EmptyContent>
+                      <Badge variant="outline">Use the form to start</Badge>
+                    </EmptyContent>
+                  ) : null}
+                </Empty>
               ) : null}
 
               {data.billingCycles.map((cycle) => (
-                <article className="rounded-lg border bg-card" key={cycle.id}>
+                <article
+                  className="motion-fade-up rounded-lg border bg-card"
+                  key={cycle.id}
+                >
                   <div className="flex flex-col gap-3 border-b px-5 py-4 md:flex-row md:items-start md:justify-between">
                     <div>
                       <h2 className="font-semibold">{cycle.name}</h2>
@@ -664,7 +726,9 @@ export default async function DashboardPage() {
                         {cycle.utilityProvider}
                       </p>
                     </div>
-                    <Badge className="w-fit">{formatCurrency(cycle.totalAmountCents)}</Badge>
+                    <Badge className="w-fit">
+                      {formatCurrency(cycle.totalAmountCents)}
+                    </Badge>
                   </div>
 
                   <div className="grid gap-4 p-5">

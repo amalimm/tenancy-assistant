@@ -116,7 +116,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      {children}
+      <div className="motion-fade-up">{children}</div>
     </main>
   )
 }

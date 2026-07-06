@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { hasGoogleOAuthConfig } from "@config/env"
 import { getSession } from "@features/auth/auth-server"
 import { SignInButton } from "@features/auth/sign-in-button"
+import { SampleMetricValue } from "@features/home/sample-metric-value"
 import { ThemeToggle } from "@shared/ui/theme-toggle"
 
 const features = [
@@ -44,19 +45,19 @@ const previewTenants = [
   {
     amount: "RM 72.40",
     days: "24 days",
-    name: "Maya",
+    name: "Tenant A",
     status: "Paid",
   },
   {
     amount: "RM 81.95",
     days: "27 days",
-    name: "Daniel",
+    name: "Tenant B",
     status: "Partial",
   },
   {
     amount: "RM 63.10",
     days: "21 days",
-    name: "Aina",
+    name: "Tenant C",
     status: "Unpaid",
   },
 ] as const
@@ -66,12 +67,9 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-5 py-6 sm:px-6 lg:px-8">
+      <section className="motion-stagger mx-auto flex min-h-[100dvh] w-full max-w-6xl flex-col px-5 py-6 sm:px-6 lg:px-8">
         <header className="flex items-center justify-between gap-4">
-          <Link
-            className="text-sm font-semibold tracking-wide"
-            href="/"
-          >
+          <Link className="text-sm font-semibold tracking-wide" href="/">
             Tenancy Assistant
           </Link>
           <div className="flex items-center gap-2">
@@ -95,7 +93,7 @@ export default async function HomePage() {
         ) : null}
 
         <div className="grid flex-1 items-center gap-10 py-10 lg:grid-cols-[minmax(0,1fr)_440px]">
-          <section className="max-w-2xl">
+          <section className="motion-stagger max-w-2xl">
             <Badge variant="secondary">Shared-house billing</Badge>
             <h1 className="mt-5 text-5xl font-semibold leading-[1.05] text-balance sm:text-6xl">
               Tenancy Assistant
@@ -115,12 +113,15 @@ export default async function HomePage() {
                 <SignInButton disabled={!hasGoogleOAuthConfig} mode="sign-in" />
               )}
             </div>
-            <div className="mt-10 grid gap-5 sm:grid-cols-2">
+            <div className="motion-stagger mt-10 grid gap-5 sm:grid-cols-2">
               {features.map((feature) => {
                 const Icon = feature.icon
 
                 return (
-                  <article className="flex gap-3" key={feature.title}>
+                  <article
+                    className="motion-lift flex gap-3 rounded-lg p-1"
+                    key={feature.title}
+                  >
                     <div className="mt-1 flex size-9 items-center justify-center rounded-lg bg-secondary">
                       <Icon className="size-4" />
                     </div>
@@ -137,38 +138,56 @@ export default async function HomePage() {
           </section>
 
           <aside
-            className="rounded-lg border bg-card p-5 text-card-foreground shadow-sm"
+            className="sample-preview motion-lift rounded-lg border bg-card p-5 text-card-foreground shadow-sm"
             id="house-view"
           >
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed bg-muted/40 px-3 py-2">
+              <div>
+                <p className="text-sm font-semibold">Sample data</p>
+                <p className="text-xs text-muted-foreground">
+                  Example only. No real records.
+                </p>
+              </div>
+              <Badge variant="outline">Not real data</Badge>
+            </div>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Current cycle
+                  Sample cycle
                 </p>
                 <h2 className="mt-1 text-2xl font-semibold">
-                  July electricity
+                  Example bill split
                 </h2>
               </div>
-              <Badge variant="outline">Ready to settle</Badge>
+              <Badge variant="outline">Demo split</Badge>
             </div>
             <div className="mt-5 grid grid-cols-3 gap-3 border-y py-4">
               <div>
                 <p className="text-xs text-muted-foreground">Total</p>
-                <p className="mt-1 font-mono text-lg font-semibold">RM 217.45</p>
+                <SampleMetricValue
+                  className="mt-1 block font-mono text-lg font-semibold"
+                  value="RM 217.45"
+                />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Away days</p>
-                <p className="mt-1 font-mono text-lg font-semibold">13</p>
+                <SampleMetricValue
+                  className="mt-1 block font-mono text-lg font-semibold"
+                  value="13"
+                />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Open</p>
-                <p className="mt-1 font-mono text-lg font-semibold">2</p>
+                <SampleMetricValue
+                  className="mt-1 block font-mono text-lg font-semibold"
+                  value="2"
+                />
               </div>
             </div>
-            <div className="mt-5 space-y-3">
+            <div className="motion-stagger mt-5 space-y-3">
               {previewTenants.map((tenant) => (
                 <div
-                  className="grid grid-cols-[1fr_auto] gap-3 rounded-lg bg-muted/40 px-3 py-3"
+                  className="motion-lift grid grid-cols-[1fr_auto] gap-3 rounded-lg bg-muted/40 px-3 py-3"
                   key={tenant.name}
                 >
                   <div className="min-w-0">
