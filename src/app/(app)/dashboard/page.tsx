@@ -1,5 +1,4 @@
 import {
-  CalendarDays,
   CheckCircle2,
   CircleAlert,
   CircleDollarSign,
@@ -10,7 +9,6 @@ import {
   Trash2,
   Upload,
   UserPlus,
-  Users,
 } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -60,13 +58,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { hasBlobConfig } from "@config/env"
 import { PAYMENT_STATUS, USER_ROLE } from "@db/schema"
 import { requireSession } from "@features/auth/auth-server"
 import { AbsenceCalendarPanel } from "@features/calendar/absence-calendar-panel"
 import { CalendarHelpGuide } from "@features/calendar/calendar-help-guide"
+import { DashboardTabs } from "@features/dashboard/dashboard-tabs"
 import {
   addLocalDays,
   formatCurrency,
@@ -491,23 +489,8 @@ export default async function DashboardPage() {
         </aside>
       </section>
 
-      <Tabs defaultValue="calendar">
-        <TabsList className="grid w-full grid-cols-3 md:w-fit">
-          <TabsTrigger value="calendar">
-            <CalendarDays />
-            Calendar
-          </TabsTrigger>
-          <TabsTrigger value="tenants">
-            <Users />
-            Tenants
-          </TabsTrigger>
-          <TabsTrigger value="billing">
-            <ReceiptText />
-            Billing
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent className="mt-4" value="calendar">
+      <DashboardTabs
+        calendar={
           <section className="rounded-lg border bg-card">
             <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -533,9 +516,8 @@ export default async function DashboardPage() {
               />
             </div>
           </section>
-        </TabsContent>
-
-        <TabsContent className="mt-4" value="tenants">
+        }
+        tenants={
           <section
             className={
               isAdmin ? "grid gap-4 lg:grid-cols-[360px_1fr]" : "grid gap-4"
@@ -577,7 +559,7 @@ export default async function DashboardPage() {
                       <Textarea id="notes" name="notes" />
                     </div>
                     <Button type="submit">
-                      <Users />
+                      <UserPlus />
                       Add tenant
                     </Button>
                   </form>
@@ -591,9 +573,8 @@ export default async function DashboardPage() {
               tenants={data.tenants}
             />
           </section>
-        </TabsContent>
-
-        <TabsContent className="mt-4" value="billing">
+        }
+        billing={
           <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
             {isAdmin ? (
               <div className="rounded-lg border bg-card">
@@ -848,8 +829,8 @@ export default async function DashboardPage() {
               ))}
             </div>
           </section>
-        </TabsContent>
-      </Tabs>
+        }
+      />
     </div>
   )
 }

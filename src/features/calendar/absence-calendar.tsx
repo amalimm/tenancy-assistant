@@ -10,7 +10,7 @@ import type {
   EventClickArg,
   EventInput,
 } from "@fullcalendar/core"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, UserPlus } from "lucide-react"
 import { useRef, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
@@ -30,10 +30,18 @@ export interface AbsenceCalendarRange {
   tenantId: string
 }
 
+export interface AbsenceCalendarEmptyState {
+  actionLabel: string
+  description: string
+  onAction: () => void
+  title: string
+}
+
 export interface AbsenceCalendarProps {
   absences: AbsenceCalendarRange[]
   canEdit: boolean
   currentTenantId: string | null
+  emptyState?: AbsenceCalendarEmptyState | null
   onDeleteAbsence: (absenceId: string) => void
   onMoveAbsence: (absenceId: string, startDate: string, endDate: string) => void
   onSelectRange: (startDate: string, endDate: string) => void
@@ -66,6 +74,7 @@ export function AbsenceCalendar({
   absences,
   canEdit,
   currentTenantId,
+  emptyState = null,
   onDeleteAbsence,
   onMoveAbsence,
   onSelectRange,
@@ -168,23 +177,46 @@ export function AbsenceCalendar({
           {currentTenantId ? <Badge variant="outline">Tenant linked</Badge> : null}
         </div>
       </div>
-      <FullCalendar
-        datesSet={handleDatesSet}
-        editable={canEdit}
-        eventLongPressDelay={100}
-        eventChange={handleEventChange}
-        eventClick={handleEventClick}
-        events={toEvents(absences)}
-        headerToolbar={false}
-        height="auto"
-        initialView="dayGridMonth"
-        plugins={[dayGridPlugin, interactionPlugin]}
-        ref={calendarRef}
-        selectable={canEdit}
-        selectLongPressDelay={100}
-        selectMirror
-        select={handleSelect}
-      />
+      <div className="relative overflow-hidden rounded-lg">
+        <div
+          aria-hidden={!canEdit && emptyState ? true : undefined}
+          className={!canEdit && emptyState ? "pointer-events-none opacity-45" : undefined}
+        >
+          <FullCalendar
+            datesSet={handleDatesSet}
+            editable={canEdit}
+            eventLongPressDelay={100}
+            eventChange={handleEventChange}
+            eventClick={handleEventClick}
+            events={toEvents(absences)}
+            headerToolbar={false}
+            height="auto"
+            initialView="dayGridMonth"
+            plugins={[dayGridPlugin, interactionPlugin]}
+            ref={calendarRef}
+            selectable={canEdit}
+            selectLongPressDelay={100}
+            selectMirror
+            select={handleSelect}
+          />
+        </div>
+        {!canEdit && emptyState ? (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/75 p-5 backdrop-blur-[1px]">
+            <div className="grid max-w-xs justify-items-center rounded-lg border bg-card p-4 text-center shadow-sm">
+              <div className="flex size-9 items-center justify-center rounded-lg bg-secondary">
+                <UserPlus className="size-4" />
+              </div>
+              <h3 className="mt-3 text-sm font-semibold">{emptyState.title}</h3>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                {emptyState.description}
+              </p>
+              <Button className="mt-4" onClick={emptyState.onAction} type="button">
+                {emptyState.actionLabel}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

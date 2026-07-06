@@ -1,6 +1,5 @@
 "use client"
 
-import { CircleAlert } from "lucide-react"
 import { useMemo, useRef, useState } from "react"
 
 import {
@@ -24,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { DASHBOARD_TAB, useDashboardTabs } from "@features/dashboard/dashboard-tabs"
 import { DateRangePicker } from "@shared/ui/date-range-picker"
 
 import {
@@ -56,6 +56,7 @@ export function AbsenceCalendarPanel({
   tenants,
   updateAbsenceAction,
 }: AbsenceCalendarPanelProps) {
+  const { setActiveTab } = useDashboardTabs()
   const createFormRef = useRef<HTMLFormElement>(null)
   const deleteFormRef = useRef<HTMLFormElement>(null)
   const updateFormRef = useRef<HTMLFormElement>(null)
@@ -77,7 +78,7 @@ export function AbsenceCalendarPanel({
   )
   const canEditCalendar = tenants.length > 0 && Boolean(defaultTenantId)
   const disabledCalendarMessage = canManageAll
-    ? "Add a tenant to use the calendar."
+    ? "Add a tenant before saving away dates."
     : "Ask an admin to add your tenant profile."
   const selectedTenantLabel =
     tenantOptions.find((tenant) => tenant.value === selectedTenantId)?.label ??
@@ -108,21 +109,20 @@ export function AbsenceCalendarPanel({
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      {!canEditCalendar ? (
-        <div className="flex items-start gap-3 rounded-lg border border-dashed bg-muted/20 p-4 xl:col-span-2">
-          <CircleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-          <div>
-            <p className="text-sm font-medium">Add a tenant first</p>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              {disabledCalendarMessage}
-            </p>
-          </div>
-        </div>
-      ) : null}
       <AbsenceCalendar
         absences={absences}
         canEdit={canEditCalendar}
         currentTenantId={currentTenantId}
+        emptyState={
+          canEditCalendar
+            ? null
+            : {
+                actionLabel: canManageAll ? "Add tenant" : "View tenants",
+                description: disabledCalendarMessage,
+                onAction: () => setActiveTab(DASHBOARD_TAB.TENANTS),
+                title: "No tenants yet",
+              }
+        }
         onDeleteAbsence={handleDeleteAbsence}
         onMoveAbsence={handleMoveAbsence}
         onSelectRange={handleSelectRange}
@@ -184,11 +184,6 @@ export function AbsenceCalendarPanel({
             rows={1}
           />
         </div>
-        {!canEditCalendar ? (
-          <div className="rounded-md border border-dashed bg-background p-3 text-sm text-muted-foreground">
-            Add a tenant before saving away dates.
-          </div>
-        ) : null}
         <Button
           disabled={!hasValidSelectedRange || !selectedTenantId}
           type="submit"
