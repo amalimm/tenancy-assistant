@@ -141,15 +141,6 @@ export default async function HomePage() {
             className="sample-preview motion-lift rounded-lg border bg-card p-5 text-card-foreground shadow-sm"
             id="house-view"
           >
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed bg-muted/40 px-3 py-2">
-              <div>
-                <p className="text-sm font-semibold">Sample data</p>
-                <p className="text-xs text-muted-foreground">
-                  Example only. No real records.
-                </p>
-              </div>
-              <Badge variant="outline">Not real data</Badge>
-            </div>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
