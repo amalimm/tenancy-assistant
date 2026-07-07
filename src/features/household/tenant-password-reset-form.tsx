@@ -25,9 +25,13 @@ export function TenantPasswordResetForm({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button size="sm" type="button" variant="outline">
+        <Button
+          aria-label={`Set password for ${tenantName}`}
+          size="icon-sm"
+          type="button"
+          variant="outline"
+        >
           <KeyRound />
-          Password
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80">
