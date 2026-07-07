@@ -1,0 +1,179 @@
+"use client"
+
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+} from "recharts"
+
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
+import { formatCurrency } from "@shared/lib/format"
+
+export interface DashboardOccupancyChartDatum {
+  away: number
+  date: string
+  label: string
+  present: number
+}
+
+export interface DashboardCollectionChartDatum {
+  due: number
+  label: string
+  paid: number
+}
+
+const occupancyChartConfig = {
+  present: {
+    color: "var(--chart-2)",
+    label: "Present",
+  },
+  away: {
+    color: "var(--chart-1)",
+    label: "Away",
+  },
+} satisfies ChartConfig
+
+const collectionChartConfig = {
+  paid: {
+    color: "var(--chart-2)",
+    label: "Paid",
+  },
+  due: {
+    color: "var(--chart-1)",
+    label: "Due",
+  },
+} satisfies ChartConfig
+
+const formatTooltipAmount = (value: unknown) => {
+  const amount = Number(value)
+
+  return Number.isFinite(amount) ? formatCurrency(amount * 100) : String(value)
+}
+
+const formatCollectionLabel = (name: unknown) => {
+  if (name === "paid") {
+    return collectionChartConfig.paid.label
+  }
+
+  if (name === "due") {
+    return collectionChartConfig.due.label
+  }
+
+  return String(name)
+}
+
+export function DashboardOccupancyChart({
+  data,
+}: {
+  data: DashboardOccupancyChartDatum[]
+}) {
+  return (
+    <ChartContainer
+      className="aspect-auto h-[270px] w-full"
+      config={occupancyChartConfig}
+      initialDimension={{ height: 270, width: 760 }}
+    >
+      <AreaChart
+        accessibilityLayer
+        data={data}
+        margin={{ bottom: 0, left: 0, right: 10, top: 10 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+        <XAxis
+          axisLine={false}
+          dataKey="label"
+          minTickGap={18}
+          tickLine={false}
+          tickMargin={8}
+        />
+        <YAxis
+          allowDecimals={false}
+          axisLine={false}
+          tickLine={false}
+          tickMargin={8}
+          width={28}
+        />
+        <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
+        <Area
+          dataKey="present"
+          fill="var(--color-present)"
+          fillOpacity={0.12}
+          stroke="var(--color-present)"
+          strokeWidth={2}
+          type="monotone"
+        />
+        <Area
+          dataKey="away"
+          fill="var(--color-away)"
+          fillOpacity={0.3}
+          stroke="var(--color-away)"
+          strokeWidth={2}
+          type="monotone"
+        />
+      </AreaChart>
+    </ChartContainer>
+  )
+}
+
+export function DashboardCollectionChart({
+  data,
+}: {
+  data: DashboardCollectionChartDatum[]
+}) {
+  return (
+    <ChartContainer
+      className="aspect-auto h-24 w-full"
+      config={collectionChartConfig}
+      initialDimension={{ height: 96, width: 360 }}
+    >
+      <BarChart
+        accessibilityLayer
+        data={data}
+        layout="vertical"
+        margin={{ bottom: 28, left: 0, right: 0, top: 28 }}
+      >
+        <XAxis hide type="number" />
+        <YAxis dataKey="label" hide type="category" />
+        <ChartTooltip
+          cursor={false}
+          content={
+            <ChartTooltipContent
+              formatter={(value, name) => (
+                <div className="flex min-w-32 items-center justify-between gap-4">
+                  <span className="text-muted-foreground">
+                    {formatCollectionLabel(name)}
+                  </span>
+                  <span className="font-mono font-medium text-foreground tabular-nums">
+                    {formatTooltipAmount(value)}
+                  </span>
+                </div>
+              )}
+              hideLabel
+            />
+          }
+        />
+        <Bar
+          dataKey="paid"
+          fill="var(--color-paid)"
+          radius={[6, 0, 0, 6]}
+          stackId="collection"
+        />
+        <Bar
+          dataKey="due"
+          fill="var(--color-due)"
+          radius={[0, 6, 6, 0]}
+          stackId="collection"
+        />
+      </BarChart>
+    </ChartContainer>
+  )
+}

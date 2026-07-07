@@ -1,4 +1,5 @@
 import {
+  CalendarPlus,
   CheckCircle2,
   CircleAlert,
   FileText,
@@ -104,9 +105,11 @@ import {
   uploadBillAction,
 } from "./actions"
 import {
-  DashboardSpendChart,
-  type DashboardSpendChartDatum,
-} from "./dashboard-spend-chart"
+  DashboardCollectionChart,
+  type DashboardCollectionChartDatum,
+  DashboardOccupancyChart,
+  type DashboardOccupancyChartDatum,
+} from "./dashboard-charts"
 import type {
   AuditLogFilters,
   DashboardAuditLog,
@@ -205,8 +208,6 @@ type DashboardAllocationLineView =
 
 type DashboardAllocationRunView = DashboardData["allocationRuns"][number]
 
-type DashboardBillingCycleView = DashboardData["billingCycles"][number]
-
 interface PaymentSummary {
   collectionRate: number
   openLines: DashboardAllocationLineView[]
@@ -217,6 +218,8 @@ interface PaymentSummary {
 }
 
 const DASHBOARD_LIST_LIMIT = 4
+
+const OCCUPANCY_TIMELINE_DAYS = 14
 
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
@@ -233,8 +236,8 @@ const formatUtilityType = (utilityType: UtilityType) =>
 const formatOpenShareCount = (count: number) =>
   count === 1 ? "1 open share" : `${count} open shares`
 
-const formatChartDateLabel = (dateValue: string) =>
-  formatLocalDate(dateValue).replace(/^\d+\s/, "")
+const formatCompactDateLabel = (dateValue: string) =>
+  formatLocalDate(dateValue).replace(/\s\d{4}$/, "")
 
 const getLatestAllocationRunsByCycle = (data: DashboardData) => {
   const runByCycleId = new Map<string, DashboardAllocationRunView>()
@@ -302,12 +305,19 @@ const getActiveTenants = (data: DashboardData, today: string) =>
       isLocalDateAfter(tenant.tenancyEndDate, today),
   )
 
+const isTenantActiveOnDate = (
+  data: DashboardData,
+  tenantId: string,
+  dateValue: string,
+) => getActiveTenants(data, dateValue).some((tenant) => tenant.id === tenantId)
+
 const getCurrentAbsences = (data: DashboardData, today: string) =>
   [...data.absences]
     .filter(
       (absence) =>
         isLocalDateOnOrBefore(absence.startDate, today) &&
-        isLocalDateAfter(absence.endDate, today),
+        isLocalDateAfter(absence.endDate, today) &&
+        isTenantActiveOnDate(data, absence.tenantId, today),
     )
     .sort((first, second) => first.endDate.localeCompare(second.endDate))
 
@@ -317,7 +327,8 @@ const getUpcomingAbsences = (data: DashboardData, today: string) =>
       (absence) =>
         LOCAL_DATE_PATTERN.test(absence.startDate) &&
         absence.startDate > today &&
-        isLocalDateAfter(absence.endDate, today),
+        isLocalDateAfter(absence.endDate, today) &&
+        isTenantActiveOnDate(data, absence.tenantId, absence.startDate),
     )
     .sort((first, second) => first.startDate.localeCompare(second.startDate))
 
@@ -326,14 +337,48 @@ const getRecentBillingCycles = (data: DashboardData, limit = 6) =>
     .sort((first, second) => second.startDate.localeCompare(first.startDate))
     .slice(0, limit)
 
-const getSpendChartData = (
-  cycles: DashboardBillingCycleView[],
-): DashboardSpendChartDatum[] =>
-  [...cycles].reverse().map((cycle) => ({
-    amount: cycle.totalAmountCents / 100,
-    label: formatChartDateLabel(cycle.startDate),
-    utility: formatUtilityType(cycle.utilityType),
-  }))
+const getAwayTenantIdsOnDate = (data: DashboardData, dateValue: string) => {
+  const tenantIds = new Set<string>()
+
+  for (const absence of data.absences) {
+    if (
+      isLocalDateOnOrBefore(absence.startDate, dateValue) &&
+      isLocalDateAfter(absence.endDate, dateValue) &&
+      isTenantActiveOnDate(data, absence.tenantId, dateValue)
+    ) {
+      tenantIds.add(absence.tenantId)
+    }
+  }
+
+  return tenantIds
+}
+
+const getOccupancyTimelineData = (
+  data: DashboardData,
+  today: string,
+): DashboardOccupancyChartDatum[] =>
+  Array.from({ length: OCCUPANCY_TIMELINE_DAYS }, (_, index) => {
+    const dateValue = addLocalDays(today, index)
+    const activeTenantCount = getActiveTenants(data, dateValue).length
+    const awayTenantCount = getAwayTenantIdsOnDate(data, dateValue).size
+
+    return {
+      away: awayTenantCount,
+      date: dateValue,
+      label: formatCompactDateLabel(dateValue),
+      present: Math.max(activeTenantCount - awayTenantCount, 0),
+    }
+  })
+
+const getCollectionChartData = (
+  summary: PaymentSummary,
+): DashboardCollectionChartDatum[] => [
+  {
+    due: summary.outstandingCents / 100,
+    label: "Collection",
+    paid: summary.paidCents / 100,
+  },
+]
 
 const formatAuditAction = (action: AuditAction) => AUDIT_ACTION_LABEL[action]
 
@@ -400,6 +445,55 @@ function DashboardPanel({
       </div>
       <div className="mt-4">{children}</div>
     </section>
+  )
+}
+
+function DashboardKpi({
+  detail,
+  label,
+  value,
+}: {
+  detail: string
+  label: string
+  value: string
+}) {
+  return (
+    <div className="bg-background px-4 py-4 sm:px-5">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-2 font-mono text-3xl font-semibold leading-none tabular-nums">
+        {value}
+      </p>
+      <p className="mt-2 truncate text-xs text-muted-foreground">{detail}</p>
+    </div>
+  )
+}
+
+function DashboardActionToolbar({ isAdmin }: { isAdmin: boolean }) {
+  return (
+    <ButtonGroup className="flex-wrap justify-start lg:justify-end">
+      {isAdmin ? (
+        <>
+          <Button asChild size="sm" variant="outline">
+            <Link href={"/dashboard/admin" as Route}>
+              <UserPlus />
+              Tenant
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href={"/dashboard/utilities" as Route}>
+              <ReceiptText />
+              Bill
+            </Link>
+          </Button>
+        </>
+      ) : null}
+      <Button asChild size="sm" variant="outline">
+        <Link href={"/dashboard/away" as Route}>
+          <CalendarPlus />
+          Away
+        </Link>
+      </Button>
+    </ButtonGroup>
   )
 }
 
@@ -624,18 +718,19 @@ function TenantRoster({
 
 export function DashboardOverview({ data }: { data: DashboardData }) {
   const today = toLocalDateValue(new Date())
+  const isAdmin = data.user.role === USER_ROLE.ADMIN
   const activeTenants = getActiveTenants(data, today)
   const currentAbsences = getCurrentAbsences(data, today)
   const latestRun = getLatestAllocationRun(data)
   const paymentSummary = getPaymentSummary(data)
   const recentCycles = getRecentBillingCycles(data)
-  const latestCycle = recentCycles[0] ?? null
   const upcomingAbsences = getUpcomingAbsences(data, today)
   const presentTenantCount = Math.max(
     activeTenants.length - currentAbsences.length,
     0,
   )
-  const spendChartData = getSpendChartData(recentCycles)
+  const occupancyTimelineData = getOccupancyTimelineData(data, today)
+  const collectionChartData = getCollectionChartData(paymentSummary)
   const visibleOpenLines = paymentSummary.openLines.slice(
     0,
     DASHBOARD_LIST_LIMIT,
@@ -646,94 +741,164 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
     DASHBOARD_LIST_LIMIT,
   )
   const visibleRecentCycles = recentCycles.slice(0, DASHBOARD_LIST_LIMIT)
-  const occupancyDetail =
-    activeTenants.length === 0
-      ? "No active tenancies"
-      : `${currentAbsences.length} away now`
+  const nextAbsence = upcomingAbsences[0] ?? null
+  const presentDetail =
+    activeTenants.length === 1
+      ? "1 active tenant"
+      : `${activeTenants.length} active tenants`
+  const awayDetail =
+    currentAbsences.length === 0
+      ? "No one away"
+      : currentAbsences
+          .map((absence) => absence.displayName)
+          .slice(0, 2)
+          .join(", ")
+  const upcomingDetail = nextAbsence
+    ? `${nextAbsence.displayName} · ${formatCompactDateLabel(nextAbsence.startDate)}`
+    : "No scheduled away"
   const paymentDetail =
     paymentSummary.totalCents === 0
       ? "No allocations"
       : paymentSummary.openPaymentCount === 0
         ? "All shares paid"
         : formatOpenShareCount(paymentSummary.openPaymentCount)
-  const collectionDetail =
-    paymentSummary.totalCents === 0
-      ? "No allocations"
-      : `${formatCurrency(paymentSummary.paidCents)} collected`
-  const latestBillDetail = latestCycle
-    ? `${formatUtilityType(latestCycle.utilityType)} · ${latestCycle.utilityProvider}`
-    : "No bills"
-
   return (
-    <div className="grid gap-4">
-      <section className="rounded-lg border bg-card p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">{USER_ROLE_LABEL[data.user.role]}</Badge>
-              {data.household?.name ? (
-                <Badge variant="outline">{data.household.name}</Badge>
-              ) : null}
-            </div>
-            <h1 className="mt-3 text-2xl font-semibold">Dashboard</h1>
-            {data.household?.address ? (
-              <p className="mt-1 text-sm text-muted-foreground">
-                {data.household.address}
-              </p>
-            ) : null}
+    <div className="grid gap-5">
+      <header className="grid gap-4 border-b pb-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">{USER_ROLE_LABEL[data.user.role]}</Badge>
+            <span className="text-xs text-muted-foreground">
+              {formatLocalDate(today)}
+            </span>
           </div>
-          <div className="text-sm sm:text-right">
+          <h1 className="mt-3 truncate text-3xl font-semibold leading-tight">
+            {data.household?.name ?? "Dashboard"}
+          </h1>
+          {data.household?.address ? (
+            <p className="mt-1 max-w-2xl truncate text-sm text-muted-foreground">
+              {data.household.address}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="grid gap-3 lg:justify-items-end">
+          <DashboardActionToolbar isAdmin={isAdmin} />
+          <div className="text-sm lg:text-right">
             <p className="text-xs text-muted-foreground">Latest split</p>
             <p className="mt-1 font-mono font-medium tabular-nums">
               {latestRun ? formatCurrency(latestRun.totalAmountCents) : "None"}
             </p>
           </div>
         </div>
+      </header>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricTile
-            detail={occupancyDetail}
-            label="Occupancy"
-            value={`${presentTenantCount}/${activeTenants.length}`}
-          />
-          <MetricTile
-            detail={paymentDetail}
-            label="Outstanding"
-            value={formatCurrency(paymentSummary.outstandingCents)}
-          />
-          <MetricTile
-            detail={collectionDetail}
-            label="Collected"
-            value={`${paymentSummary.collectionRate}%`}
-          />
-          <MetricTile
-            detail={latestBillDetail}
-            label="Latest bill"
-            value={
-              latestCycle
-                ? formatCurrency(latestCycle.totalAmountCents)
-                : "None"
-            }
-          />
-        </div>
+      <section className="grid gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-2 xl:grid-cols-4">
+        <DashboardKpi
+          detail={presentDetail}
+          label="Present"
+          value={`${presentTenantCount}/${activeTenants.length}`}
+        />
+        <DashboardKpi
+          detail={awayDetail}
+          label="Away now"
+          value={String(currentAbsences.length)}
+        />
+        <DashboardKpi
+          detail={upcomingDetail}
+          label="Upcoming away"
+          value={String(upcomingAbsences.length)}
+        />
+        <DashboardKpi
+          detail={paymentDetail}
+          label="Open shares"
+          value={String(paymentSummary.openPaymentCount)}
+        />
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)]">
-        <DashboardPanel
-          meta={
-            recentCycles.length > 0
-              ? `${recentCycles.length} recent`
-              : undefined
-          }
-          title="Utility spend"
-        >
-          {spendChartData.length > 0 ? (
-            <DashboardSpendChart data={spendChartData} />
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <DashboardPanel meta="Next 14 days" title="Occupancy timeline">
+          {activeTenants.length > 0 ? (
+            <DashboardOccupancyChart data={occupancyTimelineData} />
           ) : (
-            <p className="text-sm text-muted-foreground">No bills recorded.</p>
+            <p className="text-sm text-muted-foreground">
+              No active tenancies.
+            </p>
           )}
         </DashboardPanel>
 
+        <DashboardPanel meta={formatLocalDate(today)} title="Today">
+          <div className="grid grid-cols-2 gap-4 border-b pb-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Present</p>
+              <p className="mt-1 font-mono text-2xl font-semibold tabular-nums">
+                {presentTenantCount}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Away</p>
+              <p className="mt-1 font-mono text-2xl font-semibold tabular-nums">
+                {currentAbsences.length}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-medium">Away now</h3>
+              <span className="text-xs text-muted-foreground">
+                {currentAbsences.length}
+              </span>
+            </div>
+            <div className="mt-2 divide-y">
+              {visibleCurrentAbsences.length > 0 ? (
+                visibleCurrentAbsences.map((absence) => (
+                  <div className="py-2" key={absence.id}>
+                    <p className="truncate text-sm font-medium">
+                      {absence.displayName}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Until{" "}
+                      {formatCompactDateLabel(
+                        addLocalDays(absence.endDate, -1),
+                      )}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="py-2 text-sm text-muted-foreground">None.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-medium">Next away</h3>
+              <span className="text-xs text-muted-foreground">
+                {upcomingAbsences.length}
+              </span>
+            </div>
+            <div className="mt-2 divide-y">
+              {visibleUpcomingAbsences.length > 0 ? (
+                visibleUpcomingAbsences.map((absence) => (
+                  <div className="py-2" key={absence.id}>
+                    <p className="truncate text-sm font-medium">
+                      {absence.displayName}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatDateRange(absence.startDate, absence.endDate)}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="py-2 text-sm text-muted-foreground">None.</p>
+              )}
+            </div>
+          </div>
+        </DashboardPanel>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
         <DashboardPanel
           meta={
             paymentSummary.totalCents > 0
@@ -742,29 +907,34 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
           }
           title="Collections"
         >
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            <div className="rounded-lg border bg-background px-3 py-2">
+          {paymentSummary.totalCents > 0 ? (
+            <DashboardCollectionChart data={collectionChartData} />
+          ) : (
+            <p className="text-sm text-muted-foreground">No allocations.</p>
+          )}
+
+          <div className="mt-4 grid grid-cols-3 gap-4 border-t pt-4">
+            <div>
               <p className="text-xs text-muted-foreground">Paid</p>
-              <p className="mt-1 font-mono text-lg font-semibold tabular-nums">
+              <p className="mt-1 font-mono font-semibold tabular-nums">
                 {formatCurrency(paymentSummary.paidCents)}
               </p>
             </div>
-            <div className="rounded-lg border bg-background px-3 py-2">
+            <div>
               <p className="text-xs text-muted-foreground">Due</p>
-              <p className="mt-1 font-mono text-lg font-semibold tabular-nums">
+              <p className="mt-1 font-mono font-semibold tabular-nums">
                 {formatCurrency(paymentSummary.outstandingCents)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Open</p>
+              <p className="mt-1 font-mono font-semibold tabular-nums">
+                {paymentSummary.openPaymentCount}
               </p>
             </div>
           </div>
 
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary"
-              style={{ width: `${paymentSummary.collectionRate}%` }}
-            />
-          </div>
-
-          <div className="mt-4 grid gap-2">
+          <div className="mt-4 divide-y">
             {visibleOpenLines.length > 0 ? (
               visibleOpenLines.map((line) => {
                 const lineOutstandingCents = Math.max(
@@ -774,7 +944,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
 
                 return (
                   <div
-                    className="flex items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2"
+                    className="flex items-center justify-between gap-3 py-2"
                     key={line.id}
                   >
                     <div className="min-w-0">
@@ -792,68 +962,12 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
                 )
               })
             ) : (
-              <p className="text-sm text-muted-foreground">
+              <p className="py-2 text-sm text-muted-foreground">
                 {paymentSummary.totalCents === 0
                   ? "No allocations."
                   : "All shares paid."}
               </p>
             )}
-          </div>
-        </DashboardPanel>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <DashboardPanel
-          meta={`${presentTenantCount} present`}
-          title="Occupancy"
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <h3 className="text-sm font-medium">Away now</h3>
-              <div className="mt-2 grid gap-2">
-                {visibleCurrentAbsences.length > 0 ? (
-                  visibleCurrentAbsences.map((absence) => (
-                    <div
-                      className="rounded-lg border bg-background px-3 py-2"
-                      key={absence.id}
-                    >
-                      <p className="text-sm font-medium">
-                        {absence.displayName}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Until{" "}
-                        {formatLocalDate(addLocalDays(absence.endDate, -1))}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">None.</p>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-medium">Next away</h3>
-              <div className="mt-2 grid gap-2">
-                {visibleUpcomingAbsences.length > 0 ? (
-                  visibleUpcomingAbsences.map((absence) => (
-                    <div
-                      className="rounded-lg border bg-background px-3 py-2"
-                      key={absence.id}
-                    >
-                      <p className="text-sm font-medium">
-                        {absence.displayName}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {formatDateRange(absence.startDate, absence.endDate)}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">None.</p>
-                )}
-              </div>
-            </div>
           </div>
         </DashboardPanel>
 
@@ -865,11 +979,11 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
           }
           title="Recent bills"
         >
-          <div className="grid gap-2">
+          <div className="divide-y">
             {visibleRecentCycles.length > 0 ? (
               visibleRecentCycles.map((cycle) => (
                 <div
-                  className="flex items-start justify-between gap-3 rounded-lg border bg-background px-3 py-2"
+                  className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0"
                   key={cycle.id}
                 >
                   <div className="min-w-0">
