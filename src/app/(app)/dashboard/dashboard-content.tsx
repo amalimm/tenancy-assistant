@@ -1,7 +1,7 @@
 import {
+  CalendarDays,
   CheckCircle2,
   CircleAlert,
-  CircleDollarSign,
   FileText,
   Home,
   Mail,
@@ -10,6 +10,8 @@ import {
   Upload,
   UserPlus,
 } from "lucide-react"
+import type { Route } from "next"
+import Link from "next/link"
 import type { ReactNode } from "react"
 
 import {
@@ -63,9 +65,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { hasBlobConfig } from "@config/env"
-import { PAYMENT_STATUS, USER_ROLE } from "@db/schema"
+import {
+  AUDIT_ACTION,
+  AUDIT_ENTITY,
+  PAYMENT_STATUS,
+  USER_ROLE,
+  UTILITY_TYPE,
+  type AuditAction,
+  type AuditEntity,
+  type UtilityType,
+} from "@db/schema"
 import { AbsenceCalendarPanel } from "@features/calendar/absence-calendar-panel"
 import { CalendarHelpGuide } from "@features/calendar/calendar-help-guide"
 import { TemporaryPasswordField } from "@features/household/temporary-password-field"
@@ -91,7 +103,11 @@ import {
   updateAbsenceAction,
   uploadBillAction,
 } from "./actions"
-import type { DashboardData } from "./data"
+import type {
+  AuditLogFilters,
+  DashboardAuditLog,
+  DashboardData,
+} from "./data"
 
 const toAmountValue = (amountCents: number) => (amountCents / 100).toFixed(2)
 
@@ -105,6 +121,45 @@ const PAYMENT_STATUS_LABEL = {
   [PAYMENT_STATUS.PARTIAL]: "Partial",
   [PAYMENT_STATUS.UNPAID]: "Unpaid",
 } as const
+
+const UTILITY_TYPE_LABEL = {
+  [UTILITY_TYPE.ELECTRICITY]: "Electricity",
+  [UTILITY_TYPE.WATER]: "Water",
+  [UTILITY_TYPE.INTERNET]: "Internet",
+  [UTILITY_TYPE.OTHER]: "Other",
+} as const
+
+const AUDIT_ACTION_LABEL = {
+  [AUDIT_ACTION.ABSENCE_CREATED]: "Away range created",
+  [AUDIT_ACTION.ABSENCE_DELETED]: "Away range deleted",
+  [AUDIT_ACTION.ABSENCE_UPDATED]: "Away range updated",
+  [AUDIT_ACTION.ALLOCATION_RUN]: "Allocation run",
+  [AUDIT_ACTION.BILL_CREATED]: "Utility bill created",
+  [AUDIT_ACTION.BILL_UPLOADED]: "Bill uploaded",
+  [AUDIT_ACTION.HOUSEHOLD_CREATED]: "Household created",
+  [AUDIT_ACTION.PAYMENT_UPDATED]: "Payment updated",
+  [AUDIT_ACTION.TENANT_CREATED]: "Tenant created",
+  [AUDIT_ACTION.TENANT_DELETED]: "Tenant deleted",
+  [AUDIT_ACTION.TENANT_PASSWORD_RESET]: "Tenant password reset",
+} as const
+
+const AUDIT_ENTITY_LABEL = {
+  [AUDIT_ENTITY.ABSENCE]: "Away",
+  [AUDIT_ENTITY.ALLOCATION]: "Allocation",
+  [AUDIT_ENTITY.BILL]: "Bill",
+  [AUDIT_ENTITY.HOUSEHOLD]: "Household",
+  [AUDIT_ENTITY.PAYMENT]: "Payment",
+  [AUDIT_ENTITY.TENANT]: "Tenant",
+} as const
+
+const ADMIN_TAB = {
+  AUDIT: "audit",
+  TENANTS: "tenants",
+} as const
+
+type AdminTab = (typeof ADMIN_TAB)[keyof typeof ADMIN_TAB]
+
+const ALL_FILTER_VALUE = "all"
 
 const formatPaymentStatus = (status: string) => {
   if (status === PAYMENT_STATUS.PAID) {
@@ -151,6 +206,44 @@ const getLatestAllocationRun = (data: DashboardData) =>
     (first, second) => second.createdAt.getTime() - first.createdAt.getTime(),
   )[0] ?? null
 
+const getUpcomingAbsences = (data: DashboardData) => {
+  const today = new Date().toISOString().slice(0, 10)
+
+  return [...data.absences]
+    .filter((absence) => absence.endDate >= today)
+    .sort((first, second) => first.startDate.localeCompare(second.startDate))
+    .slice(0, 5)
+}
+
+const formatUtilityType = (utilityType: UtilityType) =>
+  UTILITY_TYPE_LABEL[utilityType]
+
+const formatAuditAction = (action: AuditAction) => AUDIT_ACTION_LABEL[action]
+
+const formatAuditEntity = (entity: AuditEntity) => AUDIT_ENTITY_LABEL[entity]
+
+const formatAuditMetadata = (metadata: Record<string, unknown> | null) => {
+  if (!metadata) {
+    return "No metadata"
+  }
+
+  const entries = Object.entries(metadata)
+
+  if (entries.length === 0) {
+    return "No metadata"
+  }
+
+  return entries
+    .map(([key, value]) => {
+      const formattedValue = Array.isArray(value)
+        ? value.join(", ")
+        : String(value)
+
+      return `${key}: ${formattedValue}`
+    })
+    .join(" · ")
+}
+
 function MetricTile({
   label,
   value,
@@ -161,7 +254,7 @@ function MetricTile({
   value: string
 }) {
   return (
-    <div className="motion-lift rounded-lg border bg-card px-4 py-3">
+    <div className="rounded-lg border bg-card px-4 py-3">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className="mt-2 font-mono text-2xl font-semibold">{value}</p>
       <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
@@ -179,7 +272,7 @@ function WorkflowItem({
   const Icon = complete ? CheckCircle2 : CircleAlert
 
   return (
-    <div className="motion-lift flex items-center gap-3 rounded-md border bg-background px-3 py-2">
+    <div className="flex items-center gap-3 rounded-md border bg-background px-3 py-2">
       <Icon
         className={
           complete ? "size-4 text-emerald-600" : "size-4 text-muted-foreground"
@@ -192,7 +285,7 @@ function WorkflowItem({
 
 export function DashboardRouteLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="motion-stagger mx-auto grid w-full max-w-7xl gap-5 px-4 py-5">
+    <div className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-5">
       {children}
     </div>
   )
@@ -412,9 +505,11 @@ function TenantRoster({
 export function DashboardOverview({ data }: { data: DashboardData }) {
   const latestRun = getLatestAllocationRun(data)
   const openPaymentCount = getOpenPaymentCount(data)
+  const upcomingAbsences = getUpcomingAbsences(data)
   const loginReadyTenantCount = data.tenants.filter(
     (tenant) => tenant.isLinked,
   ).length
+  const latestCycle = data.billingCycles[0] ?? null
   const setupItems = [
     {
       complete: data.tenants.length > 0,
@@ -433,72 +528,166 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
       label: "Bill split calculated",
     },
   ] as const
+  const quickLinks = [
+    {
+      description: "Manage away ranges and occupancy.",
+      href: "/dashboard/away",
+      icon: CalendarDays,
+      label: "Away calendar",
+    },
+    {
+      description: "Create utility bills and settle shares.",
+      href: "/dashboard/utilities",
+      icon: ReceiptText,
+      label: "Utilities",
+    },
+  ] as const
 
   return (
-    <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
-      <div className="motion-fade-up rounded-lg border bg-card p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">{USER_ROLE_LABEL[data.user.role]}</Badge>
-              <Badge variant="outline">{data.household?.name}</Badge>
+    <div className="grid gap-4">
+      <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
+        <div className="rounded-lg border bg-card p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">{USER_ROLE_LABEL[data.user.role]}</Badge>
+                <Badge variant="outline">{data.household?.name}</Badge>
+              </div>
+              <h1 className="mt-3 text-2xl font-semibold">
+                Operations snapshot
+              </h1>
+              {data.household?.address ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {data.household.address}
+                </p>
+              ) : null}
             </div>
-            <h1 className="mt-3 text-2xl font-semibold">
-              Household dashboard
-            </h1>
-            {data.household?.address ? (
-              <p className="mt-1 text-sm text-muted-foreground">
-                {data.household.address}
-              </p>
-            ) : null}
+            <div className="text-sm text-muted-foreground">
+              {latestRun
+                ? `Latest split: ${formatCurrency(latestRun.totalAmountCents)}`
+                : "No split yet"}
+            </div>
           </div>
-          <div className="text-sm text-muted-foreground">
-            {latestRun
-              ? `Latest bill split: ${formatCurrency(latestRun.totalAmountCents)}`
-              : "No bill split yet"}
-          </div>
-        </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricTile
-            detail={`${loginReadyTenantCount} tenant login${loginReadyTenantCount === 1 ? "" : "s"} ready`}
-            label="Tenants"
-            value={String(data.tenants.length)}
-          />
-          <MetricTile
-            detail="Recorded away periods"
-            label="Away ranges"
-            value={String(data.absences.length)}
-          />
-          <MetricTile
-            detail="Electricity cycles"
-            label="Bills"
-            value={String(data.billingCycles.length)}
-          />
-          <MetricTile
-            detail="Awaiting settlement"
-            label="Open payments"
-            value={String(openPaymentCount)}
-          />
-        </div>
-      </div>
-
-      <aside className="motion-fade-up rounded-lg border bg-muted/20 p-4">
-        <div className="flex items-center gap-2">
-          <CircleDollarSign className="size-4" />
-          <h2 className="text-sm font-semibold">Setup progress</h2>
-        </div>
-        <div className="mt-3 grid gap-2">
-          {setupItems.map((item) => (
-            <WorkflowItem
-              complete={item.complete}
-              key={item.label}
-              label={item.label}
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricTile
+              detail={`${loginReadyTenantCount} tenant login${loginReadyTenantCount === 1 ? "" : "s"} ready`}
+              label="Tenants"
+              value={String(data.tenants.length)}
             />
-          ))}
+            <MetricTile
+              detail={`${upcomingAbsences.length} current or upcoming`}
+              label="Away ranges"
+              value={String(data.absences.length)}
+            />
+            <MetricTile
+              detail="Utility billing cycles"
+              label="Utility bills"
+              value={String(data.billingCycles.length)}
+            />
+            <MetricTile
+              detail="Awaiting settlement"
+              label="Open payments"
+              value={String(openPaymentCount)}
+            />
+          </div>
         </div>
-      </aside>
-    </section>
+
+        <aside className="rounded-lg border bg-muted/20 p-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="size-4" />
+            <h2 className="text-sm font-semibold">Setup progress</h2>
+          </div>
+          <div className="mt-3 grid gap-2">
+            {setupItems.map((item) => (
+              <WorkflowItem
+                complete={item.complete}
+                key={item.label}
+                label={item.label}
+              />
+            ))}
+          </div>
+        </aside>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-3">
+        <div className="rounded-lg border bg-card p-4">
+          <h2 className="font-semibold">Upcoming away</h2>
+          <div className="mt-3 grid gap-2">
+            {upcomingAbsences.length > 0 ? (
+              upcomingAbsences.map((absence) => (
+                <div
+                  className="rounded-md border bg-muted/20 px-3 py-2"
+                  key={absence.id}
+                >
+                  <p className="font-medium">{absence.displayName}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatDateRange(absence.startDate, absence.endDate)}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm leading-6 text-muted-foreground">
+                No current or upcoming away ranges.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-lg border bg-card p-4">
+          <h2 className="font-semibold">Latest utility</h2>
+          {latestCycle ? (
+            <div className="mt-3 grid gap-2">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium">{latestCycle.name}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatUtilityType(latestCycle.utilityType)} ·{" "}
+                    {latestCycle.utilityProvider}
+                  </p>
+                </div>
+                <Badge>{formatCurrency(latestCycle.totalAmountCents)}</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {formatDateRange(latestCycle.startDate, latestCycle.endDate)}
+              </p>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              No utility bills have been recorded.
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-lg border bg-card p-4">
+          <h2 className="font-semibold">Workflows</h2>
+          <div className="mt-3 grid gap-2">
+            {quickLinks.map((item) => {
+              const Icon = item.icon
+
+              return (
+                <Button
+                  asChild
+                  className="h-auto justify-start gap-3 rounded-md px-3 py-2 text-left"
+                  key={item.href}
+                  variant="outline"
+                >
+                  <Link href={item.href as Route}>
+                    <Icon className="size-4" />
+                    <span>
+                      <span className="block font-medium">{item.label}</span>
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        {item.description}
+                      </span>
+                    </span>
+                  </Link>
+                </Button>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+    </div>
   )
 }
 
@@ -538,7 +727,155 @@ export function DashboardCalendar({
   )
 }
 
-export function DashboardAdmin({ data }: { data: DashboardData }) {
+function AuditLogPanel({
+  auditFilters,
+  auditLogs,
+}: {
+  auditFilters: AuditLogFilters
+  auditLogs: DashboardAuditLog[]
+}) {
+  return (
+    <Card className="gap-0 py-0">
+      <CardHeader className="border-b py-4">
+        <div>
+          <CardTitle>Audit log</CardTitle>
+          <CardDescription>
+            Filter operational changes across tenants, away ranges, and
+            utilities.
+          </CardDescription>
+        </div>
+        <CardAction>
+          <Badge variant="outline">{auditLogs.length} events</Badge>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="grid gap-4 p-5">
+        <form className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]">
+          <input name="tab" type="hidden" value={ADMIN_TAB.AUDIT} />
+          <Select
+            defaultValue={auditFilters.action ?? ALL_FILTER_VALUE}
+            name="action"
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Action" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_FILTER_VALUE}>All actions</SelectItem>
+              {Object.entries(AUDIT_ACTION_LABEL).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            defaultValue={auditFilters.entityType ?? ALL_FILTER_VALUE}
+            name="entityType"
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Entity" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_FILTER_VALUE}>All entities</SelectItem>
+              {Object.entries(AUDIT_ENTITY_LABEL).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            defaultValue={auditFilters.actorEmail ?? ""}
+            name="actorEmail"
+            placeholder="Actor email"
+            type="email"
+          />
+          <Input
+            defaultValue={auditFilters.dateFrom ?? ""}
+            name="dateFrom"
+            type="date"
+          />
+          <Input
+            defaultValue={auditFilters.dateTo ?? ""}
+            name="dateTo"
+            type="date"
+          />
+          <div className="flex gap-2">
+            <Button type="submit">Filter</Button>
+            <Button asChild variant="outline">
+              <Link href={"/dashboard/admin?tab=audit" as Route}>Reset</Link>
+            </Button>
+          </div>
+        </form>
+
+        {auditLogs.length === 0 ? (
+          <Empty className="min-h-[220px]">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileText className="text-muted-foreground" />
+              </EmptyMedia>
+              <EmptyTitle>No audit events</EmptyTitle>
+              <EmptyDescription>
+                Change filters or perform an app action to create audit records.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <div className="overflow-x-auto rounded-md border">
+            <Table className="min-w-[860px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Target</TableHead>
+                  <TableHead>Actor</TableHead>
+                  <TableHead>Metadata</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {auditLogs.map((event) => (
+                  <TableRow key={event.id}>
+                    <TableCell className="whitespace-nowrap">
+                      {formatLocalDate(
+                        event.createdAt.toISOString().slice(0, 10),
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="grid gap-1">
+                        <span>{formatAuditAction(event.action)}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatAuditEntity(event.entityType)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{event.targetLabel ?? event.entityId}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {event.actorEmail}
+                    </TableCell>
+                    <TableCell className="max-w-md text-xs text-muted-foreground">
+                      {formatAuditMetadata(event.metadata)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+export function DashboardAdmin({
+  auditFilters,
+  auditLogs,
+  data,
+  defaultTab = ADMIN_TAB.TENANTS,
+}: {
+  auditFilters: AuditLogFilters
+  auditLogs: DashboardAuditLog[]
+  data: DashboardData
+  defaultTab?: AdminTab
+}) {
   const loginReadyTenantCount = data.tenants.filter(
     (tenant) => tenant.isLinked,
   ).length
@@ -548,64 +885,89 @@ export function DashboardAdmin({ data }: { data: DashboardData }) {
   }
 
   return (
-    <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b py-4">
-          <CardTitle>Create tenant</CardTitle>
-          <CardDescription>
-            Add a tenant and generate their temporary password.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-5">
-          <form action={createTenantAction} className="grid gap-4">
-            <input
-              name="householdId"
-              type="hidden"
-              value={data.household.id}
-            />
-            <div className="grid gap-2">
-              <Label htmlFor="displayName">Name</Label>
-              <Input id="displayName" name="displayName" />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="email">Tenant email</Label>
-              <Input id="email" name="email" type="email" />
-            </div>
-            <TemporaryPasswordField
-              description="Share this with the tenant after creating the account."
-              id="temporaryPassword"
-              name="temporaryPassword"
-            />
-            <DateRangeFields
-              allowOpenRange
-              endName="tenancyEndDate"
-              id="tenancyPeriod"
-              label="Tenancy period"
-              placeholder="Select move-in date"
-              startName="tenancyStartDate"
-            />
-            <div className="grid gap-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea id="notes" name="notes" />
-            </div>
-            <Button type="submit">
-              <UserPlus />
-              Add tenant
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+    <div className="grid gap-4">
+      <section className="rounded-lg border bg-card p-5">
+        <Badge variant="secondary">Admin</Badge>
+        <h1 className="mt-3 text-2xl font-semibold">Admin hub</h1>
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+          Manage tenants and review the operational audit trail for this
+          household.
+        </p>
+      </section>
 
-      <TenantRoster
-        isAdmin
-        loginReadyTenantCount={loginReadyTenantCount}
-        tenants={data.tenants}
-      />
-    </section>
+      <Tabs defaultValue={defaultTab}>
+        <TabsList>
+          <TabsTrigger value={ADMIN_TAB.TENANTS}>Tenants</TabsTrigger>
+          <TabsTrigger value={ADMIN_TAB.AUDIT}>Audit Log</TabsTrigger>
+        </TabsList>
+        <TabsContent value={ADMIN_TAB.TENANTS}>
+          <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
+            <Card className="gap-0 py-0">
+              <CardHeader className="border-b py-4">
+                <CardTitle>Create tenant</CardTitle>
+                <CardDescription>
+                  Add a tenant and generate their temporary password.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-5">
+                <form action={createTenantAction} className="grid gap-4">
+                  <input
+                    name="householdId"
+                    type="hidden"
+                    value={data.household.id}
+                  />
+                  <div className="grid gap-2">
+                    <Label htmlFor="displayName">Name</Label>
+                    <Input id="displayName" name="displayName" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="email">Tenant email</Label>
+                    <Input id="email" name="email" type="email" />
+                  </div>
+                  <TemporaryPasswordField
+                    description="Share this with the tenant after creating the account."
+                    id="temporaryPassword"
+                    name="temporaryPassword"
+                  />
+                  <DateRangeFields
+                    allowOpenRange
+                    endName="tenancyEndDate"
+                    id="tenancyPeriod"
+                    label="Tenancy period"
+                    placeholder="Select move-in date"
+                    startName="tenancyStartDate"
+                  />
+                  <div className="grid gap-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea id="notes" name="notes" />
+                  </div>
+                  <Button type="submit">
+                    <UserPlus />
+                    Add tenant
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <TenantRoster
+              isAdmin
+              loginReadyTenantCount={loginReadyTenantCount}
+              tenants={data.tenants}
+            />
+          </section>
+        </TabsContent>
+        <TabsContent value={ADMIN_TAB.AUDIT}>
+          <AuditLogPanel
+            auditFilters={auditFilters}
+            auditLogs={auditLogs}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }
 
-export function DashboardElectricity({
+export function DashboardUtilities({
   data,
   isAdmin,
 }: {
@@ -631,11 +993,11 @@ export function DashboardElectricity({
       }
     >
       {isAdmin ? (
-        <div className="motion-fade-up rounded-lg border bg-card lg:sticky lg:top-20 lg:self-start">
+        <div className="rounded-lg border bg-card lg:sticky lg:top-20 lg:self-start">
           <div className="border-b px-5 py-4">
-            <h2 className="font-semibold">Create bill</h2>
+            <h2 className="font-semibold">Create utility bill</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Add the bill period and amount.
+              Select the utility, period, and amount.
             </p>
           </div>
           <form action={createBillingCycleAction} className="grid gap-4 p-5">
@@ -651,6 +1013,21 @@ export function DashboardElectricity({
                 name="name"
                 placeholder="January 2026 electricity"
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="utilityType">Utility type</Label>
+              <Select defaultValue={UTILITY_TYPE.ELECTRICITY} name="utilityType">
+                <SelectTrigger className="w-full" id="utilityType">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(UTILITY_TYPE_LABEL).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <DateRangeFields
               endName="endDate"
@@ -689,12 +1066,12 @@ export function DashboardElectricity({
       ) : null}
 
       <div className="grid content-start gap-4">
-        <section className="motion-fade-up rounded-lg border bg-card p-4">
+        <section className="rounded-lg border bg-card p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="font-semibold">Electricity</h1>
+              <h1 className="font-semibold">Utilities</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Cycles, payments, and attachments.
+                Bills, allocations, payments, and attachments.
               </p>
             </div>
             <Badge
@@ -737,7 +1114,7 @@ export function DashboardElectricity({
         </section>
 
         {data.billingCycles.length === 0 ? (
-          <Empty className="motion-fade-up min-h-[260px] bg-card">
+          <Empty className="min-h-[260px] bg-card">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <ReceiptText className="text-muted-foreground" />
@@ -757,7 +1134,7 @@ export function DashboardElectricity({
 
         {data.billingCycles.map((cycle) => (
           <article
-            className="motion-fade-up rounded-lg border bg-card"
+            className="rounded-lg border bg-card"
             key={cycle.id}
           >
             <div className="flex flex-col gap-3 border-b px-5 py-4 md:flex-row md:items-start md:justify-between">
@@ -765,7 +1142,7 @@ export function DashboardElectricity({
                 <h2 className="font-semibold">{cycle.name}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {formatDateRange(cycle.startDate, cycle.endDate)} ·{" "}
-                  {cycle.utilityProvider}
+                  {formatUtilityType(cycle.utilityType)} · {cycle.utilityProvider}
                 </p>
               </div>
               <Badge className="w-fit">

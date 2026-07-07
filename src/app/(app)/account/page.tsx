@@ -26,7 +26,7 @@ export default async function AccountPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <Badge variant="secondary">{USER_ROLE_LABEL[role]}</Badge>
-            <h1 className="mt-3 text-2xl font-semibold">Profile</h1>
+            <h1 className="mt-3 text-2xl font-semibold">Account</h1>
           </div>
           <Badge variant="outline">
             {role === USER_ROLE.ADMIN ? "Google SSO" : "Email + password"}

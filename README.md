@@ -1,7 +1,7 @@
 # Tenancy Assistant
 
 Tenancy Assistant helps a shared household track tenants, absence ranges,
-electricity billing cycles, bill uploads, allocation runs, and payment status.
+utility billing cycles, bill uploads, allocation runs, and payment status.
 
 ## Stack
 

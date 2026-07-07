@@ -33,7 +33,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const isAdmin = session.user.role === USER_ROLE.ADMIN
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main className="min-h-screen bg-background pb-14 text-foreground md:pb-0">
       <header className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 py-2">
           <div className="flex min-w-0 items-center gap-4">
@@ -102,7 +102,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                   >
                     <Link href={"/account" as Route}>
                       <UserRound />
-                      Profile
+                      Account
                     </Link>
                   </Button>
                   <SignInButton
@@ -116,7 +116,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <div className="motion-fade-up">{children}</div>
+      <div>{children}</div>
     </main>
   )
 }

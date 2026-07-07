@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Own electricity billing cycles, allocation calculation, bill uploads, and
+Own utility billing cycles, allocation calculation, bill uploads, and
 allocation summaries.
 
 ## Owns
