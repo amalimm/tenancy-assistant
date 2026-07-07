@@ -68,7 +68,7 @@ import { PAYMENT_STATUS, USER_ROLE } from "@db/schema"
 import { requireSession } from "@features/auth/auth-server"
 import { AbsenceCalendarPanel } from "@features/calendar/absence-calendar-panel"
 import { CalendarHelpGuide } from "@features/calendar/calendar-help-guide"
-import { DashboardTabs } from "@features/dashboard/dashboard-tabs"
+import { DashboardSections } from "@features/dashboard/dashboard-sections"
 import { TemporaryPasswordField } from "@features/household/temporary-password-field"
 import { TenantPasswordResetForm } from "@features/household/tenant-password-reset-form"
 import {
@@ -445,7 +445,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="motion-stagger mx-auto grid w-full max-w-7xl gap-5 px-4 py-5">
-      <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
+      <section
+        className="grid scroll-mt-24 gap-4 lg:grid-cols-[1fr_360px]"
+        id="overview"
+      >
         <div className="motion-fade-up rounded-lg border bg-card p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -510,7 +513,7 @@ export default async function DashboardPage() {
         </aside>
       </section>
 
-      <DashboardTabs
+      <DashboardSections
         calendar={
           <section className="rounded-lg border bg-card">
             <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
@@ -538,13 +541,9 @@ export default async function DashboardPage() {
             </div>
           </section>
         }
-        tenants={
-          <section
-            className={
-              isAdmin ? "grid gap-4 lg:grid-cols-[360px_1fr]" : "grid gap-4"
-            }
-          >
-            {isAdmin ? (
+        admin={
+          isAdmin ? (
+            <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
               <Card className="gap-0 py-0">
                 <CardHeader className="border-b py-4">
                   <CardTitle>Create tenant</CardTitle>
@@ -591,16 +590,16 @@ export default async function DashboardPage() {
                   </form>
                 </CardContent>
               </Card>
-            ) : null}
 
-            <TenantRoster
-              isAdmin={isAdmin}
-              loginReadyTenantCount={loginReadyTenantCount}
-              tenants={data.tenants}
-            />
-          </section>
+              <TenantRoster
+                isAdmin={isAdmin}
+                loginReadyTenantCount={loginReadyTenantCount}
+                tenants={data.tenants}
+              />
+            </section>
+          ) : null
         }
-        billing={
+        electric={
           <section
             className={
               isAdmin

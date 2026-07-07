@@ -23,7 +23,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { DASHBOARD_TAB, useDashboardTabs } from "@features/dashboard/dashboard-tabs"
 import { DateRangePicker } from "@shared/ui/date-range-picker"
 
 import {
@@ -56,7 +55,6 @@ export function AbsenceCalendarPanel({
   tenants,
   updateAbsenceAction,
 }: AbsenceCalendarPanelProps) {
-  const { setActiveTab } = useDashboardTabs()
   const createFormRef = useRef<HTMLFormElement>(null)
   const deleteFormRef = useRef<HTMLFormElement>(null)
   const updateFormRef = useRef<HTMLFormElement>(null)
@@ -117,9 +115,7 @@ export function AbsenceCalendarPanel({
           canEditCalendar
             ? null
             : {
-                actionLabel: canManageAll ? "Add tenant" : "View tenants",
                 description: disabledCalendarMessage,
-                onAction: () => setActiveTab(DASHBOARD_TAB.TENANTS),
                 title: "No tenants yet",
               }
         }

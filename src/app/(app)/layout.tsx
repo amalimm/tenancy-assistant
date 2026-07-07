@@ -1,13 +1,16 @@
-import { Home, LayoutDashboard } from "lucide-react"
+import { Bolt, LayoutDashboard, Shield, UserRound } from "lucide-react"
 import Link from "next/link"
 import type { ReactNode } from "react"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { USER_ROLE } from "@db/schema"
+import { AccountPasswordForm } from "@features/auth/account-password-form"
 import { requireSession } from "@features/auth/auth-server"
 import { SignInButton } from "@features/auth/sign-in-button"
 import { ThemeToggle } from "@shared/ui/theme-toggle"
@@ -26,6 +29,7 @@ const getUserInitials = (displayName: string) => {
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await requireSession()
   const userInitials = getUserInitials(session.user.name)
+  const isAdmin = session.user.role === USER_ROLE.ADMIN
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -50,16 +54,31 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             </Link>
             <nav
               aria-label="Primary"
-              className="hidden items-center border-l pl-4 md:flex"
+              className="hidden items-center gap-1 border-l pl-4 md:flex"
             >
               <Link
-                aria-current="page"
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-muted px-2.5 text-sm font-medium text-foreground"
-                href="/dashboard"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-muted px-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                href="/dashboard#overview"
               >
                 <LayoutDashboard className="size-4" />
                 Dashboard
               </Link>
+              <Link
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                href="/dashboard#electric"
+              >
+                <Bolt className="size-4" />
+                Electric
+              </Link>
+              {isAdmin ? (
+                <Link
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  href="/dashboard#admin"
+                >
+                  <Shield className="size-4" />
+                  Admin
+                </Link>
+              ) : null}
             </nav>
           </div>
           <div className="flex items-center gap-2">
@@ -77,34 +96,51 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               </PopoverTrigger>
               <PopoverContent
                 align="end"
-                className="w-64 gap-0 rounded-xl p-1.5 shadow-lg"
+                className="w-80 gap-0 rounded-xl p-1.5 shadow-lg"
                 sideOffset={8}
               >
                 <div className="px-2.5 py-2">
-                  <p className="truncate text-sm font-medium">
-                    {session.user.name}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {session.user.email}
+                  <div className="flex items-start gap-3">
+                    <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary font-mono text-xs font-semibold">
+                      {userInitials}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-medium">
+                          {session.user.name}
+                        </p>
+                        <Badge variant="outline">
+                          {isAdmin ? "Admin" : "Tenant"}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {session.user.email}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="my-1 h-px bg-border" />
+                <div className="px-2.5 py-2">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <UserRound className="size-4 text-muted-foreground" />
+                    Profile
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Account settings stay here. Household navigation stays in
+                    the top bar.
                   </p>
                 </div>
                 <div className="my-1 h-px bg-border" />
-                <nav aria-label="Account menu" className="grid gap-0.5">
-                  <Link
-                    className="flex h-8 items-center gap-2 rounded-md px-2 text-sm transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-                    href="/"
-                  >
-                    <Home className="size-4 text-muted-foreground" />
-                    Home
-                  </Link>
-                  <Link
-                    aria-current="page"
-                    className="flex h-8 items-center gap-2 rounded-md bg-muted px-2 text-sm font-medium transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-                    href="/dashboard"
-                  >
-                    <LayoutDashboard className="size-4 text-muted-foreground" />
-                    Dashboard
-                  </Link>
+                {isAdmin ? (
+                  <div className="px-2.5 py-2 text-xs leading-5 text-muted-foreground">
+                    Admin sign-in is managed by Google. Tenant password resets
+                    are available in the Admin section.
+                  </div>
+                ) : (
+                  <AccountPasswordForm />
+                )}
+                <div className="my-1 h-px bg-border" />
+                <nav aria-label="Account actions" className="grid gap-0.5">
                   <SignInButton
                     className="h-8 w-full justify-start rounded-md px-2 text-sm font-normal"
                     mode="sign-out"

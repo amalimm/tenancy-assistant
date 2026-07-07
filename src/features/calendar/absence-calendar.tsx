@@ -31,9 +31,9 @@ export interface AbsenceCalendarRange {
 }
 
 export interface AbsenceCalendarEmptyState {
-  actionLabel: string
+  actionLabel?: string
   description: string
-  onAction: () => void
+  onAction?: () => void
   title: string
 }
 
@@ -210,9 +210,15 @@ export function AbsenceCalendar({
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {emptyState.description}
               </p>
-              <Button className="mt-4" onClick={emptyState.onAction} type="button">
-                {emptyState.actionLabel}
-              </Button>
+              {emptyState.onAction && emptyState.actionLabel ? (
+                <Button
+                  className="mt-4"
+                  onClick={emptyState.onAction}
+                  type="button"
+                >
+                  {emptyState.actionLabel}
+                </Button>
+              ) : null}
             </div>
           </div>
         ) : null}
