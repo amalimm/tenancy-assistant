@@ -7,7 +7,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -198,9 +197,6 @@ export function AbsenceCalendarPanel({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete away range?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes it from the calendar.
-            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
