@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { hasGoogleOAuthConfig } from "@config/env"
 import { getSession } from "@features/auth/auth-server"
 import { SignInButton } from "@features/auth/sign-in-button"
+import { TenantSignInForm } from "@features/auth/tenant-sign-in-form"
 import { SampleMetricValue } from "@features/home/sample-metric-value"
 import { ThemeToggle } from "@shared/ui/theme-toggle"
 
@@ -85,9 +86,10 @@ export default async function HomePage() {
         {!hasGoogleOAuthConfig ? (
           <Alert className="mt-6 max-w-3xl">
             <CircleAlert className="size-4" />
-            <AlertTitle>Sign-in unavailable</AlertTitle>
+            <AlertTitle>Admin Google sign-in unavailable</AlertTitle>
             <AlertDescription>
-              Ask your household admin for access.
+              Tenants can still sign in with the email and password from their
+              household admin.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -101,7 +103,7 @@ export default async function HomePage() {
             <p className="mt-5 max-w-xl text-lg leading-8 text-muted-foreground">
               Track away dates, split bills, and settle payments.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            <div className="mt-8 grid gap-4">
               {session ? (
                 <Button asChild size="lg">
                   <Link href="/dashboard">
@@ -110,7 +112,16 @@ export default async function HomePage() {
                   </Link>
                 </Button>
               ) : (
-                <SignInButton disabled={!hasGoogleOAuthConfig} mode="sign-in" />
+                <>
+                  <TenantSignInForm />
+                  <div className="flex flex-wrap items-center gap-3">
+                    <SignInButton
+                      disabled={!hasGoogleOAuthConfig}
+                      mode="sign-in"
+                      variant="outline"
+                    />
+                  </div>
+                </>
               )}
             </div>
             <div className="motion-stagger mt-10 grid gap-5 sm:grid-cols-2">

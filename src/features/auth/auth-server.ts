@@ -1,5 +1,6 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter"
 import { betterAuth } from "better-auth"
+import { admin } from "better-auth/plugins"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
@@ -18,6 +19,11 @@ export const auth = betterAuth({
     provider: "sqlite",
     schema,
   }),
+  emailAndPassword: {
+    disableSignUp: true,
+    enabled: true,
+    minPasswordLength: 10,
+  },
   user: {
     additionalFields: {
       role: {
@@ -39,6 +45,12 @@ export const auth = betterAuth({
       clientSecret: env.googleClientSecret,
     },
   },
+  plugins: [
+    admin({
+      adminRoles: [USER_ROLE.ADMIN],
+      defaultRole: USER_ROLE.TENANT,
+    }),
+  ],
   databaseHooks: {
     user: {
       create: {

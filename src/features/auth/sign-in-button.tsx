@@ -57,8 +57,8 @@ export function SignInButton({
   const label =
     mode === "sign-in"
       ? isPending
-        ? "Signing in..."
-        : "Sign in with Google"
+        ? "Opening Google..."
+        : "Admin Google sign-in"
       : isPending
         ? "Signing out..."
         : "Sign out"
