@@ -26,6 +26,7 @@ export interface TemporaryPasswordFieldProps {
   id: string
   label?: string
   name: string
+  onGenerate?: () => void
 }
 
 export function TemporaryPasswordField({
@@ -33,6 +34,7 @@ export function TemporaryPasswordField({
   id,
   label = "Temporary password",
   name,
+  onGenerate,
 }: TemporaryPasswordFieldProps) {
   const [copied, setCopied] = useState(false)
   const [password, setPassword] = useState("")
@@ -44,6 +46,7 @@ export function TemporaryPasswordField({
   const handleGenerate = () => {
     setCopied(false)
     setPassword(createTemporaryPassword())
+    onGenerate?.()
   }
 
   const handleCopy = async () => {
