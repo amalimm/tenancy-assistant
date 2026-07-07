@@ -1,15 +1,15 @@
 "use client"
 
-import { KeyRound } from "lucide-react"
 import type { FormEvent } from "react"
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
 import { authClient } from "@features/auth/auth-client"
 
-export function AccountPasswordForm() {
+export function AccountPasswordForm({ className }: { className?: string }) {
   const [message, setMessage] = useState("")
   const [isPending, setIsPending] = useState(false)
 
@@ -49,11 +49,7 @@ export function AccountPasswordForm() {
   }
 
   return (
-    <form className="grid gap-3 px-2.5 py-2" onSubmit={handleSubmit}>
-      <div className="flex items-center gap-2 text-sm font-medium">
-        <KeyRound className="size-4 text-muted-foreground" />
-        Password
-      </div>
+    <form className={cn("grid gap-3", className)} onSubmit={handleSubmit}>
       <div className="grid gap-2">
         <Label htmlFor="currentPassword">Current password</Label>
         <Input

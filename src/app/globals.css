@@ -241,7 +241,6 @@
     @apply min-h-[100dvh] bg-background text-foreground;
     }
   html {
-    scroll-behavior: smooth;
     @apply font-sans;
     }
   *::-webkit-scrollbar {

@@ -2,14 +2,13 @@ import { USER_ROLE } from "@db/schema"
 import { requireSession } from "@features/auth/auth-server"
 
 import {
-  DashboardCalendar,
-  DashboardOverview,
+  DashboardElectricity,
   DashboardRouteLayout,
   HouseholdSetupCard,
-} from "./dashboard-content"
-import { getDashboardData } from "./data"
+} from "../dashboard-content"
+import { getDashboardData } from "../data"
 
-export default async function DashboardPage() {
+export default async function ElectricityPage() {
   const session = await requireSession()
   const data = await getDashboardData({
     email: session.user.email,
@@ -24,8 +23,7 @@ export default async function DashboardPage() {
 
   return (
     <DashboardRouteLayout>
-      <DashboardOverview data={data} />
-      <DashboardCalendar data={data} isAdmin={isAdmin} />
+      <DashboardElectricity data={data} isAdmin={isAdmin} />
     </DashboardRouteLayout>
   )
 }
