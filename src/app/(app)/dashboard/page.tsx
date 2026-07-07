@@ -346,11 +346,11 @@ function TenantRoster({
                         <AlertDialogTrigger asChild>
                           <Button
                             aria-label={`Remove ${tenant.displayName}`}
-                            size="sm"
-                            variant="destructive"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:border-destructive/40 focus-visible:ring-destructive/20"
+                            size="icon-sm"
+                            variant="ghost"
                           >
                             <Trash2 />
-                            Remove
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
