@@ -26,6 +26,7 @@ import { DateRangePicker } from "@shared/ui/date-range-picker"
 
 import {
   AbsenceCalendar,
+  type AbsenceCalendarMoveInput,
   type AbsenceCalendarRange,
   type AbsenceCalendarTenant,
 } from "./absence-calendar"
@@ -56,7 +57,6 @@ export function AbsenceCalendarPanel({
 }: AbsenceCalendarPanelProps) {
   const createFormRef = useRef<HTMLFormElement>(null)
   const deleteFormRef = useRef<HTMLFormElement>(null)
-  const updateFormRef = useRef<HTMLFormElement>(null)
   const firstTenantId = tenants[0]?.id ?? ""
   const defaultTenantId = currentTenantId ?? firstTenantId
   const [selectedTenantId, setSelectedTenantId] = useState(defaultTenantId)
@@ -64,18 +64,13 @@ export function AbsenceCalendarPanel({
   const [selectedEndDate, setSelectedEndDate] = useState("")
   const [pendingDeleteId, setPendingDeleteId] = useState("")
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [pendingUpdate, setPendingUpdate] = useState({
-    absenceId: "",
-    endDate: "",
-    startDate: "",
-  })
   const tenantOptions = useMemo(
     () => tenants.map((tenant) => ({ label: tenant.displayName, value: tenant.id })),
     [tenants],
   )
   const canEditCalendar = tenants.length > 0 && Boolean(defaultTenantId)
   const disabledCalendarMessage = canManageAll
-    ? "Add a tenant before saving away dates."
+    ? "Add a tenant before saving calendar dates."
     : "Ask an admin to add your tenant profile."
   const selectedTenantLabel =
     tenantOptions.find((tenant) => tenant.value === selectedTenantId)?.label ??
@@ -95,13 +90,25 @@ export function AbsenceCalendarPanel({
     setDeleteDialogOpen(true)
   }
 
-  const handleMoveAbsence = (
-    absenceId: string,
-    startDate: string,
-    endDate: string,
-  ) => {
-    setPendingUpdate({ absenceId, endDate, startDate })
-    window.setTimeout(() => updateFormRef.current?.requestSubmit(), 0)
+  const handleCreateAbsence = async (formData: FormData) => {
+    await createAbsenceAction(formData)
+    setSelectedStartDate("")
+    setSelectedEndDate("")
+    createFormRef.current?.reset()
+  }
+
+  const handleMoveAbsence = async ({
+    absenceId,
+    startDate,
+    endDate,
+  }: AbsenceCalendarMoveInput) => {
+    const formData = new FormData()
+
+    formData.set("absenceId", absenceId)
+    formData.set("startDate", startDate)
+    formData.set("endDate", endDate)
+
+    await updateAbsenceAction(formData)
   }
 
   return (
@@ -110,6 +117,10 @@ export function AbsenceCalendarPanel({
         absences={absences}
         canEdit={canEditCalendar}
         currentTenantId={currentTenantId}
+        draftRange={{
+          endDate: selectedEndDate,
+          startDate: selectedStartDate,
+        }}
         emptyState={
           canEditCalendar
             ? null
@@ -124,14 +135,14 @@ export function AbsenceCalendarPanel({
       />
 
       <form
-        action={createAbsenceAction}
+        action={handleCreateAbsence}
         className="grid content-start gap-4 rounded-lg border bg-muted/20 p-4"
         ref={createFormRef}
       >
         <input name="startDate" type="hidden" value={selectedStartDate} />
         <input name="endDate" type="hidden" value={selectedEndDate} />
         <div className="grid gap-2">
-          <p className="text-sm font-medium">New away range</p>
+          <p className="text-sm font-medium">New entry</p>
           <DateRangePicker
             disabled={!canEditCalendar}
             endDate={selectedEndDate}
@@ -140,7 +151,7 @@ export function AbsenceCalendarPanel({
               setSelectedStartDate(range.startDate)
               setSelectedEndDate(range.endDate)
             }}
-            placeholder="Select away dates"
+            placeholder="Select dates"
             startDate={selectedStartDate}
           />
         </div>
@@ -183,7 +194,7 @@ export function AbsenceCalendarPanel({
           disabled={!hasValidSelectedRange || !selectedTenantId}
           type="submit"
         >
-          Add away range
+          Save dates
         </Button>
       </form>
 
@@ -196,7 +207,7 @@ export function AbsenceCalendarPanel({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete away range?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -209,11 +220,6 @@ export function AbsenceCalendarPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <form action={updateAbsenceAction} className="hidden" ref={updateFormRef}>
-        <input name="absenceId" readOnly value={pendingUpdate.absenceId} />
-        <input name="startDate" readOnly value={pendingUpdate.startDate} />
-        <input name="endDate" readOnly value={pendingUpdate.endDate} />
-      </form>
     </div>
   )
 }

@@ -6,12 +6,12 @@ import FullCalendar from "@fullcalendar/react"
 import type {
   DateSelectArg,
   DatesSetArg,
-  EventChangeArg,
   EventClickArg,
+  EventDropArg,
   EventInput,
 } from "@fullcalendar/core"
 import { ChevronLeft, ChevronRight, UserPlus } from "lucide-react"
-import { useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -37,17 +37,31 @@ export interface AbsenceCalendarEmptyState {
   title: string
 }
 
+export interface AbsenceCalendarDraftRange {
+  endDate: string
+  startDate: string
+}
+
+export interface AbsenceCalendarMoveInput {
+  absenceId: string
+  endDate: string
+  startDate: string
+}
+
 export interface AbsenceCalendarProps {
   absences: AbsenceCalendarRange[]
   canEdit: boolean
   currentTenantId: string | null
+  draftRange?: AbsenceCalendarDraftRange | null
   emptyState?: AbsenceCalendarEmptyState | null
   onDeleteAbsence: (absenceId: string) => void
-  onMoveAbsence: (absenceId: string, startDate: string, endDate: string) => void
+  onMoveAbsence: (move: AbsenceCalendarMoveInput) => Promise<void> | void
   onSelectRange: (startDate: string, endDate: string) => void
 }
 
 const toDateOnly = (dateValue: string) => dateValue.slice(0, 10)
+
+const DRAFT_SELECTION_EVENT_ID = "calendar-draft-selection"
 
 const CALENDAR_NAV_ACTION = {
   NEXT: "next",
@@ -58,8 +72,23 @@ const CALENDAR_NAV_ACTION = {
 type CalendarNavAction =
   (typeof CALENDAR_NAV_ACTION)[keyof typeof CALENDAR_NAV_ACTION]
 
-const toEvents = (absences: AbsenceCalendarRange[]): EventInput[] =>
-  absences.map((absence) => ({
+const isValidDraftRange = (
+  draftRange: AbsenceCalendarDraftRange | null | undefined,
+) =>
+  Boolean(
+    draftRange &&
+      draftRange.startDate.length >= 10 &&
+      draftRange.endDate.length >= 10 &&
+      draftRange.endDate > draftRange.startDate,
+  )
+
+const isDraftEventId = (eventId: string) => eventId === DRAFT_SELECTION_EVENT_ID
+
+const toEvents = (
+  absences: AbsenceCalendarRange[],
+  draftRange: AbsenceCalendarDraftRange | null | undefined,
+): EventInput[] => {
+  const events = absences.map<EventInput>((absence) => ({
     id: absence.id,
     title: `${absence.displayName}${absence.reason ? ` - ${absence.reason}` : ""}`,
     start: absence.startDate,
@@ -70,10 +99,26 @@ const toEvents = (absences: AbsenceCalendarRange[]): EventInput[] =>
     },
   }))
 
+  if (isValidDraftRange(draftRange) && draftRange) {
+    events.push({
+      allDay: true,
+      classNames: ["calendar-draft-event"],
+      editable: false,
+      end: draftRange.endDate,
+      id: DRAFT_SELECTION_EVENT_ID,
+      start: draftRange.startDate,
+      title: "Selected dates",
+    })
+  }
+
+  return events
+}
+
 export function AbsenceCalendar({
   absences,
   canEdit,
   currentTenantId,
+  draftRange = null,
   emptyState = null,
   onDeleteAbsence,
   onMoveAbsence,
@@ -81,6 +126,10 @@ export function AbsenceCalendar({
 }: AbsenceCalendarProps) {
   const calendarRef = useRef<FullCalendar | null>(null)
   const [calendarTitle, setCalendarTitle] = useState("Calendar")
+  const calendarEvents = useMemo(
+    () => toEvents(absences, draftRange),
+    [absences, draftRange],
+  )
 
   const handleCalendarNav = (action: CalendarNavAction) => {
     const calendarApi = calendarRef.current?.getApi()
@@ -115,27 +164,39 @@ export function AbsenceCalendar({
   }
 
   const handleEventClick = (click: EventClickArg) => {
-    if (!canEdit) {
+    if (!canEdit || isDraftEventId(click.event.id)) {
       return
     }
 
     onDeleteAbsence(click.event.id)
   }
 
-  const handleEventChange = (change: EventChangeArg) => {
+  const handleEventDrop = (drop: EventDropArg) => {
     if (!canEdit) {
+      drop.revert()
       return
     }
 
-    const startDate = change.event.startStr
-    const endDate = change.event.endStr
+    if (isDraftEventId(drop.event.id)) {
+      drop.revert()
+      return
+    }
+
+    const startDate = drop.event.startStr
+    const endDate = drop.event.endStr
 
     if (startDate.length === 0 || endDate.length === 0) {
-      change.revert()
+      drop.revert()
       return
     }
 
-    onMoveAbsence(change.event.id, toDateOnly(startDate), toDateOnly(endDate))
+    void Promise.resolve(
+      onMoveAbsence({
+        absenceId: drop.event.id,
+        endDate: toDateOnly(endDate),
+        startDate: toDateOnly(startDate),
+      }),
+    ).catch(() => drop.revert())
   }
 
   return (
@@ -173,8 +234,8 @@ export function AbsenceCalendar({
           <h3 className="text-base font-semibold">{calendarTitle}</h3>
         </div>
         <div className="flex flex-wrap items-center gap-2 md:justify-end">
-          <Badge variant="secondary">Away calendar</Badge>
-          {currentTenantId ? <Badge variant="outline">Tenant linked</Badge> : null}
+          <Badge variant="secondary">Calendar</Badge>
+          {currentTenantId ? <Badge variant="outline">Your profile</Badge> : null}
         </div>
       </div>
       <div className="relative overflow-hidden rounded-lg">
@@ -186,9 +247,9 @@ export function AbsenceCalendar({
             datesSet={handleDatesSet}
             editable={canEdit}
             eventLongPressDelay={100}
-            eventChange={handleEventChange}
             eventClick={handleEventClick}
-            events={toEvents(absences)}
+            eventDrop={handleEventDrop}
+            events={calendarEvents}
             headerToolbar={false}
             height="auto"
             initialView="dayGridMonth"

@@ -6,6 +6,10 @@
   --fc-event-bg-color: var(--primary);
   --fc-event-border-color: var(--primary);
   --fc-event-text-color: var(--primary-foreground);
+  --calendar-draft-bg: color-mix(in oklab, var(--foreground) 12%, transparent);
+  --calendar-draft-border: color-mix(in oklab, var(--foreground) 22%, transparent);
+  --calendar-draft-strong-bg: color-mix(in oklab, var(--foreground) 16%, transparent);
+  --calendar-draft-text: var(--muted-foreground);
   font-size: 0.875rem;
 }
 
@@ -33,6 +37,32 @@
 
 .fc .fc-day-disabled {
   background: var(--muted);
+}
+
+.fc .fc-highlight {
+  border: 1px solid var(--calendar-draft-border);
+  border-radius: calc(var(--radius) - 4px);
+  background: var(--calendar-draft-bg);
+}
+
+.fc .calendar-draft-event,
+.fc .fc-event.calendar-draft-event {
+  border-color: var(--calendar-draft-border);
+  background: var(--calendar-draft-bg);
+  box-shadow: none;
+}
+
+.fc .calendar-draft-event .fc-event-main {
+  color: var(--calendar-draft-text);
+}
+
+.fc .fc-event-mirror,
+.fc .fc-event.fc-event-mirror,
+.fc .fc-event.fc-event-dragging {
+  border-color: var(--calendar-draft-border);
+  background: var(--calendar-draft-strong-bg);
+  box-shadow: none;
+  opacity: 0.86;
 }
 
 .fc .fc-button-primary {
