@@ -7,9 +7,10 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
 import { authClient } from "@features/auth/auth-client"
 
-export function TenantSignInForm() {
+export function TenantSignInForm({ className }: { className?: string }) {
   const [errorMessage, setErrorMessage] = useState("")
   const [isPending, setIsPending] = useState(false)
 
@@ -45,21 +46,23 @@ export function TenantSignInForm() {
 
   return (
     <form
-      className="grid w-full max-w-sm gap-3 rounded-lg border bg-card p-4 text-card-foreground"
+      className={cn("grid gap-4", className)}
       onSubmit={handleSubmit}
     >
       <div>
-        <h2 className="text-sm font-semibold">Tenant login</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Use the email and temporary password from your admin.
+        <h2 className="text-base font-semibold">Tenant login</h2>
+        <p className="mt-1 max-w-sm text-sm leading-6 text-muted-foreground">
+          Use the email and temporary password from your household admin.
         </p>
       </div>
       <div className="grid gap-2">
         <Label htmlFor="tenantEmail">Email</Label>
         <Input
           autoComplete="email"
+          className="h-11 rounded-xl bg-background/80 px-3"
           id="tenantEmail"
           name="tenantEmail"
+          placeholder="you@example.com"
           type="email"
         />
       </div>
@@ -67,15 +70,21 @@ export function TenantSignInForm() {
         <Label htmlFor="tenantPassword">Password</Label>
         <Input
           autoComplete="current-password"
+          className="h-11 rounded-xl bg-background/80 px-3"
           id="tenantPassword"
           name="tenantPassword"
+          placeholder="Temporary password"
           type="password"
         />
       </div>
       {errorMessage ? (
         <p className="text-sm text-destructive">{errorMessage}</p>
       ) : null}
-      <Button disabled={isPending} type="submit">
+      <Button
+        className="h-11 rounded-xl"
+        disabled={isPending}
+        type="submit"
+      >
         <LogIn />
         {isPending ? "Signing in..." : "Open tenant dashboard"}
       </Button>

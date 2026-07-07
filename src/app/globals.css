@@ -10,9 +10,11 @@
 
 @theme inline {
 
-    --font-heading: var(--font-sans);
+    --font-heading: var(--font-geist-sans);
 
-    --font-sans: var(--font-sans);
+    --font-sans: var(--font-geist-sans);
+
+    --font-mono: var(--font-geist-mono);
 
     --color-sidebar-ring: var(--sidebar-ring);
 
