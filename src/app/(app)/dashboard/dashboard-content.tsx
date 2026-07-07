@@ -1,5 +1,4 @@
 import {
-  CalendarDays,
   CheckCircle2,
   CircleAlert,
   FileText,
@@ -87,6 +86,7 @@ import {
   formatCurrency,
   formatDays,
   formatLocalDate,
+  toLocalDateValue,
 } from "@shared/lib/format"
 import { DateRangeFields } from "@shared/ui/date-range-fields"
 
@@ -103,6 +103,10 @@ import {
   updateAbsenceAction,
   uploadBillAction,
 } from "./actions"
+import {
+  DashboardSpendChart,
+  type DashboardSpendChartDatum,
+} from "./dashboard-spend-chart"
 import type {
   AuditLogFilters,
   DashboardAuditLog,
@@ -196,27 +200,140 @@ const getTenantInitials = (displayName: string) => {
   return initials || "T"
 }
 
-const getOpenPaymentCount = (data: DashboardData) =>
-  data.allocationRuns
-    .flatMap((run) => run.lines)
-    .filter((line) => line.paymentStatus !== PAYMENT_STATUS.PAID).length
+type DashboardAllocationLineView =
+  DashboardData["allocationRuns"][number]["lines"][number]
 
-const getLatestAllocationRun = (data: DashboardData) =>
-  [...data.allocationRuns].sort(
-    (first, second) => second.createdAt.getTime() - first.createdAt.getTime(),
-  )[0] ?? null
+type DashboardAllocationRunView = DashboardData["allocationRuns"][number]
 
-const getUpcomingAbsences = (data: DashboardData) => {
-  const today = new Date().toISOString().slice(0, 10)
+type DashboardBillingCycleView = DashboardData["billingCycles"][number]
 
-  return [...data.absences]
-    .filter((absence) => absence.endDate >= today)
-    .sort((first, second) => first.startDate.localeCompare(second.startDate))
-    .slice(0, 5)
+interface PaymentSummary {
+  collectionRate: number
+  openLines: DashboardAllocationLineView[]
+  openPaymentCount: number
+  outstandingCents: number
+  paidCents: number
+  totalCents: number
 }
+
+const DASHBOARD_LIST_LIMIT = 4
+
+const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+const isLocalDateOnOrBefore = (dateValue: string, comparisonDate: string) =>
+  LOCAL_DATE_PATTERN.test(dateValue) && dateValue <= comparisonDate
+
+const isLocalDateAfter = (dateValue: string | null, comparisonDate: string) =>
+  dateValue === null ||
+  (LOCAL_DATE_PATTERN.test(dateValue) && dateValue > comparisonDate)
 
 const formatUtilityType = (utilityType: UtilityType) =>
   UTILITY_TYPE_LABEL[utilityType]
+
+const formatOpenShareCount = (count: number) =>
+  count === 1 ? "1 open share" : `${count} open shares`
+
+const formatChartDateLabel = (dateValue: string) =>
+  formatLocalDate(dateValue).replace(/^\d+\s/, "")
+
+const getLatestAllocationRunsByCycle = (data: DashboardData) => {
+  const runByCycleId = new Map<string, DashboardAllocationRunView>()
+
+  for (const run of data.allocationRuns) {
+    const existingRun = runByCycleId.get(run.billingCycleId)
+
+    if (!existingRun || run.createdAt > existingRun.createdAt) {
+      runByCycleId.set(run.billingCycleId, run)
+    }
+  }
+
+  return [...runByCycleId.values()].sort(
+    (first, second) => second.createdAt.getTime() - first.createdAt.getTime(),
+  )
+}
+
+const getPaymentSummary = (data: DashboardData): PaymentSummary => {
+  const lines = getLatestAllocationRunsByCycle(data).flatMap((run) => run.lines)
+  const openLines: DashboardAllocationLineView[] = []
+  let paidCents = 0
+  let totalCents = 0
+  let outstandingCents = 0
+
+  for (const line of lines) {
+    const linePaidCents = Math.min(
+      line.paymentAmountPaidCents,
+      line.amountCents,
+    )
+    const lineOutstandingCents = Math.max(
+      line.amountCents - linePaidCents,
+      0,
+    )
+
+    totalCents += line.amountCents
+    paidCents += linePaidCents
+    outstandingCents += lineOutstandingCents
+
+    if (lineOutstandingCents > 0) {
+      openLines.push(line)
+    }
+  }
+
+  return {
+    collectionRate:
+      totalCents === 0 ? 0 : Math.round((paidCents / totalCents) * 100),
+    openLines,
+    openPaymentCount: openLines.length,
+    outstandingCents,
+    paidCents,
+    totalCents,
+  }
+}
+
+const getOpenPaymentCount = (data: DashboardData) =>
+  getPaymentSummary(data).openPaymentCount
+
+const getLatestAllocationRun = (data: DashboardData) =>
+  getLatestAllocationRunsByCycle(data)[0] ?? null
+
+const getActiveTenants = (data: DashboardData, today: string) =>
+  data.tenants.filter(
+    (tenant) =>
+      isLocalDateOnOrBefore(tenant.tenancyStartDate, today) &&
+      isLocalDateAfter(tenant.tenancyEndDate, today),
+  )
+
+const getCurrentAbsences = (data: DashboardData, today: string) =>
+  [...data.absences]
+    .filter(
+      (absence) =>
+        isLocalDateOnOrBefore(absence.startDate, today) &&
+        isLocalDateAfter(absence.endDate, today),
+    )
+    .sort((first, second) => first.endDate.localeCompare(second.endDate))
+
+const getUpcomingAbsences = (data: DashboardData, today: string) =>
+  [...data.absences]
+    .filter(
+      (absence) =>
+        LOCAL_DATE_PATTERN.test(absence.startDate) &&
+        absence.startDate > today &&
+        isLocalDateAfter(absence.endDate, today),
+    )
+    .sort((first, second) => first.startDate.localeCompare(second.startDate))
+
+const getRecentBillingCycles = (data: DashboardData, limit = 6) =>
+  [...data.billingCycles]
+    .sort((first, second) => second.startDate.localeCompare(first.startDate))
+    .slice(0, limit)
+
+const getSpendChartData = (
+  cycles: DashboardBillingCycleView[],
+): DashboardSpendChartDatum[] =>
+  [...cycles].reverse().map((cycle) => ({
+    amount: cycle.totalAmountCents / 100,
+    label: formatChartDateLabel(cycle.startDate),
+    utility: formatUtilityType(cycle.utilityType),
+  }))
 
 const formatAuditAction = (action: AuditAction) => AUDIT_ACTION_LABEL[action]
 
@@ -254,32 +371,35 @@ function MetricTile({
   value: string
 }) {
   return (
-    <div className="rounded-lg border bg-card px-4 py-3">
+    <div className="rounded-lg border bg-background px-4 py-3">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-2 font-mono text-2xl font-semibold">{value}</p>
+      <p className="mt-2 break-words font-mono text-2xl font-semibold tabular-nums">
+        {value}
+      </p>
       <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
     </div>
   )
 }
 
-function WorkflowItem({
-  complete,
-  label,
+function DashboardPanel({
+  children,
+  meta,
+  title,
 }: {
-  complete: boolean
-  label: string
+  children: ReactNode
+  meta?: string | undefined
+  title: string
 }) {
-  const Icon = complete ? CheckCircle2 : CircleAlert
-
   return (
-    <div className="flex items-center gap-3 rounded-md border bg-background px-3 py-2">
-      <Icon
-        className={
-          complete ? "size-4 text-emerald-600" : "size-4 text-muted-foreground"
-        }
-      />
-      <span className="text-sm">{label}</span>
-    </div>
+    <section className="rounded-lg border bg-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="font-semibold">{title}</h2>
+        {meta ? (
+          <span className="text-xs text-muted-foreground">{meta}</span>
+        ) : null}
+      </div>
+      <div className="mt-4">{children}</div>
+    </section>
   )
 }
 
@@ -503,189 +623,272 @@ function TenantRoster({
 }
 
 export function DashboardOverview({ data }: { data: DashboardData }) {
+  const today = toLocalDateValue(new Date())
+  const activeTenants = getActiveTenants(data, today)
+  const currentAbsences = getCurrentAbsences(data, today)
   const latestRun = getLatestAllocationRun(data)
-  const openPaymentCount = getOpenPaymentCount(data)
-  const upcomingAbsences = getUpcomingAbsences(data)
-  const loginReadyTenantCount = data.tenants.filter(
-    (tenant) => tenant.isLinked,
-  ).length
-  const latestCycle = data.billingCycles[0] ?? null
-  const setupItems = [
-    {
-      complete: data.tenants.length > 0,
-      label: "Tenant roster created",
-    },
-    {
-      complete: loginReadyTenantCount > 0,
-      label: "Tenant logins created",
-    },
-    {
-      complete: data.billingCycles.length > 0,
-      label: "Billing cycle recorded",
-    },
-    {
-      complete: Boolean(latestRun),
-      label: "Bill split calculated",
-    },
-  ] as const
-  const quickLinks = [
-    {
-      description: "Manage away ranges and occupancy.",
-      href: "/dashboard/away",
-      icon: CalendarDays,
-      label: "Away calendar",
-    },
-    {
-      description: "Create utility bills and settle shares.",
-      href: "/dashboard/utilities",
-      icon: ReceiptText,
-      label: "Utilities",
-    },
-  ] as const
+  const paymentSummary = getPaymentSummary(data)
+  const recentCycles = getRecentBillingCycles(data)
+  const latestCycle = recentCycles[0] ?? null
+  const upcomingAbsences = getUpcomingAbsences(data, today)
+  const presentTenantCount = Math.max(
+    activeTenants.length - currentAbsences.length,
+    0,
+  )
+  const spendChartData = getSpendChartData(recentCycles)
+  const visibleOpenLines = paymentSummary.openLines.slice(
+    0,
+    DASHBOARD_LIST_LIMIT,
+  )
+  const visibleCurrentAbsences = currentAbsences.slice(0, DASHBOARD_LIST_LIMIT)
+  const visibleUpcomingAbsences = upcomingAbsences.slice(
+    0,
+    DASHBOARD_LIST_LIMIT,
+  )
+  const visibleRecentCycles = recentCycles.slice(0, DASHBOARD_LIST_LIMIT)
+  const occupancyDetail =
+    activeTenants.length === 0
+      ? "No active tenancies"
+      : `${currentAbsences.length} away now`
+  const paymentDetail =
+    paymentSummary.totalCents === 0
+      ? "No allocations"
+      : paymentSummary.openPaymentCount === 0
+        ? "All shares paid"
+        : formatOpenShareCount(paymentSummary.openPaymentCount)
+  const collectionDetail =
+    paymentSummary.totalCents === 0
+      ? "No allocations"
+      : `${formatCurrency(paymentSummary.paidCents)} collected`
+  const latestBillDetail = latestCycle
+    ? `${formatUtilityType(latestCycle.utilityType)} · ${latestCycle.utilityProvider}`
+    : "No bills"
 
   return (
     <div className="grid gap-4">
-      <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="rounded-lg border bg-card p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{USER_ROLE_LABEL[data.user.role]}</Badge>
-                <Badge variant="outline">{data.household?.name}</Badge>
-              </div>
-              <h1 className="mt-3 text-2xl font-semibold">
-                Operations snapshot
-              </h1>
-              {data.household?.address ? (
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {data.household.address}
-                </p>
+      <section className="rounded-lg border bg-card p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">{USER_ROLE_LABEL[data.user.role]}</Badge>
+              {data.household?.name ? (
+                <Badge variant="outline">{data.household.name}</Badge>
               ) : null}
             </div>
-            <div className="text-sm text-muted-foreground">
-              {latestRun
-                ? `Latest split: ${formatCurrency(latestRun.totalAmountCents)}`
-                : "No split yet"}
-            </div>
+            <h1 className="mt-3 text-2xl font-semibold">Dashboard</h1>
+            {data.household?.address ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {data.household.address}
+              </p>
+            ) : null}
           </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricTile
-              detail={`${loginReadyTenantCount} tenant login${loginReadyTenantCount === 1 ? "" : "s"} ready`}
-              label="Tenants"
-              value={String(data.tenants.length)}
-            />
-            <MetricTile
-              detail={`${upcomingAbsences.length} current or upcoming`}
-              label="Away ranges"
-              value={String(data.absences.length)}
-            />
-            <MetricTile
-              detail="Utility billing cycles"
-              label="Utility bills"
-              value={String(data.billingCycles.length)}
-            />
-            <MetricTile
-              detail="Awaiting settlement"
-              label="Open payments"
-              value={String(openPaymentCount)}
-            />
+          <div className="text-sm sm:text-right">
+            <p className="text-xs text-muted-foreground">Latest split</p>
+            <p className="mt-1 font-mono font-medium tabular-nums">
+              {latestRun ? formatCurrency(latestRun.totalAmountCents) : "None"}
+            </p>
           </div>
         </div>
 
-        <aside className="rounded-lg border bg-muted/20 p-4">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="size-4" />
-            <h2 className="text-sm font-semibold">Setup progress</h2>
-          </div>
-          <div className="mt-3 grid gap-2">
-            {setupItems.map((item) => (
-              <WorkflowItem
-                complete={item.complete}
-                key={item.label}
-                label={item.label}
-              />
-            ))}
-          </div>
-        </aside>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricTile
+            detail={occupancyDetail}
+            label="Occupancy"
+            value={`${presentTenantCount}/${activeTenants.length}`}
+          />
+          <MetricTile
+            detail={paymentDetail}
+            label="Outstanding"
+            value={formatCurrency(paymentSummary.outstandingCents)}
+          />
+          <MetricTile
+            detail={collectionDetail}
+            label="Collected"
+            value={`${paymentSummary.collectionRate}%`}
+          />
+          <MetricTile
+            detail={latestBillDetail}
+            label="Latest bill"
+            value={
+              latestCycle
+                ? formatCurrency(latestCycle.totalAmountCents)
+                : "None"
+            }
+          />
+        </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-lg border bg-card p-4">
-          <h2 className="font-semibold">Upcoming away</h2>
-          <div className="mt-3 grid gap-2">
-            {upcomingAbsences.length > 0 ? (
-              upcomingAbsences.map((absence) => (
-                <div
-                  className="rounded-md border bg-muted/20 px-3 py-2"
-                  key={absence.id}
-                >
-                  <p className="font-medium">{absence.displayName}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {formatDateRange(absence.startDate, absence.endDate)}
-                  </p>
-                </div>
-              ))
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)]">
+        <DashboardPanel
+          meta={
+            recentCycles.length > 0
+              ? `${recentCycles.length} recent`
+              : undefined
+          }
+          title="Utility spend"
+        >
+          {spendChartData.length > 0 ? (
+            <DashboardSpendChart data={spendChartData} />
+          ) : (
+            <p className="text-sm text-muted-foreground">No bills recorded.</p>
+          )}
+        </DashboardPanel>
+
+        <DashboardPanel
+          meta={
+            paymentSummary.totalCents > 0
+              ? `${paymentSummary.collectionRate}% paid`
+              : undefined
+          }
+          title="Collections"
+        >
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <div className="rounded-lg border bg-background px-3 py-2">
+              <p className="text-xs text-muted-foreground">Paid</p>
+              <p className="mt-1 font-mono text-lg font-semibold tabular-nums">
+                {formatCurrency(paymentSummary.paidCents)}
+              </p>
+            </div>
+            <div className="rounded-lg border bg-background px-3 py-2">
+              <p className="text-xs text-muted-foreground">Due</p>
+              <p className="mt-1 font-mono text-lg font-semibold tabular-nums">
+                {formatCurrency(paymentSummary.outstandingCents)}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary"
+              style={{ width: `${paymentSummary.collectionRate}%` }}
+            />
+          </div>
+
+          <div className="mt-4 grid gap-2">
+            {visibleOpenLines.length > 0 ? (
+              visibleOpenLines.map((line) => {
+                const lineOutstandingCents = Math.max(
+                  line.amountCents - line.paymentAmountPaidCents,
+                  0,
+                )
+
+                return (
+                  <div
+                    className="flex items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2"
+                    key={line.id}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {line.displayName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatPaymentStatus(line.paymentStatus)}
+                      </p>
+                    </div>
+                    <span className="font-mono text-sm font-medium tabular-nums">
+                      {formatCurrency(lineOutstandingCents)}
+                    </span>
+                  </div>
+                )
+              })
             ) : (
-              <p className="text-sm leading-6 text-muted-foreground">
-                No current or upcoming away ranges.
+              <p className="text-sm text-muted-foreground">
+                {paymentSummary.totalCents === 0
+                  ? "No allocations."
+                  : "All shares paid."}
               </p>
             )}
           </div>
-        </div>
+        </DashboardPanel>
+      </section>
 
-        <div className="rounded-lg border bg-card p-4">
-          <h2 className="font-semibold">Latest utility</h2>
-          {latestCycle ? (
-            <div className="mt-3 grid gap-2">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-medium">{latestCycle.name}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {formatUtilityType(latestCycle.utilityType)} ·{" "}
-                    {latestCycle.utilityProvider}
-                  </p>
-                </div>
-                <Badge>{formatCurrency(latestCycle.totalAmountCents)}</Badge>
+      <section className="grid gap-4 lg:grid-cols-2">
+        <DashboardPanel
+          meta={`${presentTenantCount} present`}
+          title="Occupancy"
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <h3 className="text-sm font-medium">Away now</h3>
+              <div className="mt-2 grid gap-2">
+                {visibleCurrentAbsences.length > 0 ? (
+                  visibleCurrentAbsences.map((absence) => (
+                    <div
+                      className="rounded-lg border bg-background px-3 py-2"
+                      key={absence.id}
+                    >
+                      <p className="text-sm font-medium">
+                        {absence.displayName}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Until{" "}
+                        {formatLocalDate(addLocalDays(absence.endDate, -1))}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">None.</p>
+                )}
               </div>
-              <p className="text-sm text-muted-foreground">
-                {formatDateRange(latestCycle.startDate, latestCycle.endDate)}
-              </p>
             </div>
-          ) : (
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              No utility bills have been recorded.
-            </p>
-          )}
-        </div>
 
-        <div className="rounded-lg border bg-card p-4">
-          <h2 className="font-semibold">Workflows</h2>
-          <div className="mt-3 grid gap-2">
-            {quickLinks.map((item) => {
-              const Icon = item.icon
-
-              return (
-                <Button
-                  asChild
-                  className="h-auto justify-start gap-3 rounded-md px-3 py-2 text-left"
-                  key={item.href}
-                  variant="outline"
-                >
-                  <Link href={item.href as Route}>
-                    <Icon className="size-4" />
-                    <span>
-                      <span className="block font-medium">{item.label}</span>
-                      <span className="block text-xs font-normal text-muted-foreground">
-                        {item.description}
-                      </span>
-                    </span>
-                  </Link>
-                </Button>
-              )
-            })}
+            <div>
+              <h3 className="text-sm font-medium">Next away</h3>
+              <div className="mt-2 grid gap-2">
+                {visibleUpcomingAbsences.length > 0 ? (
+                  visibleUpcomingAbsences.map((absence) => (
+                    <div
+                      className="rounded-lg border bg-background px-3 py-2"
+                      key={absence.id}
+                    >
+                      <p className="text-sm font-medium">
+                        {absence.displayName}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {formatDateRange(absence.startDate, absence.endDate)}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">None.</p>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        </DashboardPanel>
+
+        <DashboardPanel
+          meta={
+            data.billingCycles.length > 0
+              ? `${data.billingCycles.length} total`
+              : undefined
+          }
+          title="Recent bills"
+        >
+          <div className="grid gap-2">
+            {visibleRecentCycles.length > 0 ? (
+              visibleRecentCycles.map((cycle) => (
+                <div
+                  className="flex items-start justify-between gap-3 rounded-lg border bg-background px-3 py-2"
+                  key={cycle.id}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{cycle.name}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatUtilityType(cycle.utilityType)} ·{" "}
+                      {formatDateRange(cycle.startDate, cycle.endDate)}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-mono text-sm font-medium tabular-nums">
+                    {formatCurrency(cycle.totalAmountCents)}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No bills recorded.</p>
+            )}
+          </div>
+        </DashboardPanel>
       </section>
     </div>
   )
