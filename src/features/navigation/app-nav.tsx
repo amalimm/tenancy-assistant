@@ -13,10 +13,10 @@ const DASHBOARD_NAV_ITEM = {
   label: "Dashboard",
 } as const
 
-const AWAY_NAV_ITEM = {
-  href: "/dashboard/away",
+const CALENDAR_NAV_ITEM = {
+  href: "/dashboard/calendar",
   icon: CalendarDays,
-  label: "Away",
+  label: "Calendar",
 } as const
 
 const UTILITIES_NAV_ITEM = {
@@ -42,8 +42,8 @@ const isActiveRoute = (pathname: string, href: string) => {
 export function AppNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname()
   const navItems = isAdmin
-    ? [DASHBOARD_NAV_ITEM, AWAY_NAV_ITEM, UTILITIES_NAV_ITEM, ADMIN_NAV_ITEM]
-    : [DASHBOARD_NAV_ITEM, AWAY_NAV_ITEM, UTILITIES_NAV_ITEM]
+    ? [DASHBOARD_NAV_ITEM, CALENDAR_NAV_ITEM, UTILITIES_NAV_ITEM, ADMIN_NAV_ITEM]
+    : [DASHBOARD_NAV_ITEM, CALENDAR_NAV_ITEM, UTILITIES_NAV_ITEM]
 
   return (
     <>

@@ -142,9 +142,9 @@ const revalidateAdmin = () => {
   revalidatePath("/dashboard/admin")
 }
 
-const revalidateAway = () => {
+const revalidateCalendar = () => {
   revalidateDashboard()
-  revalidatePath("/dashboard/away")
+  revalidatePath("/dashboard/calendar")
 }
 
 const revalidateUtilities = () => {
@@ -226,7 +226,7 @@ const assertWritableAbsenceTenant = async (tenantId: string) => {
   )
 
   if (linkedTenantId !== tenantId) {
-    throw new Error("Tenants can only manage their own away ranges.")
+    throw new Error("Tenants can only manage their own calendar entries.")
   }
 
   return session
@@ -542,7 +542,7 @@ export const createAbsenceAction = async (formData: FormData) => {
     targetLabel: targetTenant.displayName,
   })
 
-  revalidateAway()
+  revalidateCalendar()
 }
 
 export const updateAbsenceAction = async (formData: FormData) => {
@@ -558,7 +558,7 @@ export const updateAbsenceAction = async (formData: FormData) => {
     .limit(1)
 
   if (!existingAbsence) {
-    throw new Error("Away range not found.")
+    throw new Error("Calendar entry not found.")
   }
 
   const session = await assertWritableAbsenceTenant(existingAbsence.tenantId)
@@ -597,7 +597,7 @@ export const updateAbsenceAction = async (formData: FormData) => {
     targetLabel: targetTenant.displayName,
   })
 
-  revalidateAway()
+  revalidateCalendar()
 }
 
 export const deleteAbsenceAction = async (formData: FormData) => {
@@ -611,7 +611,7 @@ export const deleteAbsenceAction = async (formData: FormData) => {
     .limit(1)
 
   if (!existingAbsence) {
-    throw new Error("Away range not found.")
+    throw new Error("Calendar entry not found.")
   }
 
   const session = await assertWritableAbsenceTenant(existingAbsence.tenantId)
@@ -641,7 +641,7 @@ export const deleteAbsenceAction = async (formData: FormData) => {
     targetLabel: targetTenant.displayName,
   })
 
-  revalidateAway()
+  revalidateCalendar()
 }
 
 export const createBillingCycleAction = async (formData: FormData) => {
