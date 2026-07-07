@@ -1,6 +1,6 @@
 "use client"
 
-import { LogIn, LogOut } from "lucide-react"
+import { LogOut } from "lucide-react"
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -58,7 +58,7 @@ export function SignInButton({
     mode === "sign-in"
       ? isPending
         ? "Opening Google..."
-        : "Admin Google sign-in"
+        : "Admin sign in with Google"
       : isPending
         ? "Signing out..."
         : "Sign out"
@@ -71,7 +71,7 @@ export function SignInButton({
       type="button"
       variant={variant ?? (mode === "sign-out" ? "outline" : "default")}
     >
-      {mode === "sign-in" ? <LogIn /> : <LogOut />}
+      {mode === "sign-out" ? <LogOut /> : null}
       {label}
     </Button>
   )

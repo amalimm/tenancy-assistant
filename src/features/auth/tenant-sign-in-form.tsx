@@ -1,6 +1,5 @@
 "use client"
 
-import { LogIn } from "lucide-react"
 import type { FormEvent } from "react"
 import { useState } from "react"
 
@@ -45,24 +44,21 @@ export function TenantSignInForm({ className }: { className?: string }) {
   }
 
   return (
-    <form
-      className={cn("grid gap-4", className)}
-      onSubmit={handleSubmit}
-    >
+    <form className={cn("grid gap-4", className)} onSubmit={handleSubmit}>
       <div>
         <h2 className="text-base font-semibold">Tenant login</h2>
-        <p className="mt-1 max-w-sm text-sm leading-6 text-muted-foreground">
-          Use the email and temporary password from your household admin.
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          Use the email and temporary password from your admin.
         </p>
       </div>
       <div className="grid gap-2">
         <Label htmlFor="tenantEmail">Email</Label>
         <Input
           autoComplete="email"
-          className="h-11 rounded-xl bg-background/80 px-3"
+          className="h-10 bg-background px-3"
           id="tenantEmail"
           name="tenantEmail"
-          placeholder="you@example.com"
+          required
           type="email"
         />
       </div>
@@ -70,10 +66,10 @@ export function TenantSignInForm({ className }: { className?: string }) {
         <Label htmlFor="tenantPassword">Password</Label>
         <Input
           autoComplete="current-password"
-          className="h-11 rounded-xl bg-background/80 px-3"
+          className="h-10 bg-background px-3"
           id="tenantPassword"
           name="tenantPassword"
-          placeholder="Temporary password"
+          required
           type="password"
         />
       </div>
@@ -81,12 +77,11 @@ export function TenantSignInForm({ className }: { className?: string }) {
         <p className="text-sm text-destructive">{errorMessage}</p>
       ) : null}
       <Button
-        className="h-11 rounded-xl"
+        className="h-10"
         disabled={isPending}
         type="submit"
       >
-        <LogIn />
-        {isPending ? "Signing in..." : "Open tenant dashboard"}
+        {isPending ? "Signing in..." : "Open dashboard"}
       </Button>
     </form>
   )
