@@ -19,9 +19,9 @@ import {
 import { formatCurrency } from "@shared/lib/format"
 
 export interface DashboardOccupancyChartDatum {
-  away: number
   date: string
   label: string
+  out: number
   present: number
 }
 
@@ -36,9 +36,9 @@ const occupancyChartConfig = {
     color: "var(--chart-2)",
     label: "Present",
   },
-  away: {
+  out: {
     color: "var(--chart-1)",
-    label: "Away",
+    label: "Out",
   },
 } satisfies ChartConfig
 
@@ -112,10 +112,10 @@ export function DashboardOccupancyChart({
           type="monotone"
         />
         <Area
-          dataKey="away"
-          fill="var(--color-away)"
+          dataKey="out"
+          fill="var(--color-out)"
           fillOpacity={0.3}
-          stroke="var(--color-away)"
+          stroke="var(--color-out)"
           strokeWidth={2}
           type="monotone"
         />

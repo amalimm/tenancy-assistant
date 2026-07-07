@@ -53,8 +53,8 @@ export default async function HomePage() {
               Tenancy Assistant
             </h1>
             <p className="mt-6 max-w-md text-base leading-8 text-muted-foreground">
-              Track away days, split electricity by occupancy, and keep tenant
-              balances clear.
+              Track calendar dates, split electricity by occupancy, and keep
+              tenant balances clear.
             </p>
           </section>
 

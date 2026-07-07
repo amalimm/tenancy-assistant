@@ -36,9 +36,9 @@ export function CalendarHelpGuide() {
             <CalendarDays className="size-4" />
           </div>
           <div>
-            <p className="font-medium">Away calendar</p>
+            <p className="font-medium">Calendar</p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              Return days are excluded.
+              Return dates are excluded.
             </p>
           </div>
         </div>

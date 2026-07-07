@@ -1,5 +1,4 @@
 import {
-  CalendarPlus,
   CheckCircle2,
   CircleAlert,
   FileText,
@@ -136,9 +135,9 @@ const UTILITY_TYPE_LABEL = {
 } as const
 
 const AUDIT_ACTION_LABEL = {
-  [AUDIT_ACTION.ABSENCE_CREATED]: "Away range created",
-  [AUDIT_ACTION.ABSENCE_DELETED]: "Away range deleted",
-  [AUDIT_ACTION.ABSENCE_UPDATED]: "Away range updated",
+  [AUDIT_ACTION.ABSENCE_CREATED]: "Calendar entry created",
+  [AUDIT_ACTION.ABSENCE_DELETED]: "Calendar entry deleted",
+  [AUDIT_ACTION.ABSENCE_UPDATED]: "Calendar entry updated",
   [AUDIT_ACTION.ALLOCATION_RUN]: "Allocation run",
   [AUDIT_ACTION.BILL_CREATED]: "Utility bill created",
   [AUDIT_ACTION.BILL_UPLOADED]: "Bill uploaded",
@@ -150,7 +149,7 @@ const AUDIT_ACTION_LABEL = {
 } as const
 
 const AUDIT_ENTITY_LABEL = {
-  [AUDIT_ENTITY.ABSENCE]: "Away",
+  [AUDIT_ENTITY.ABSENCE]: "Calendar",
   [AUDIT_ENTITY.ALLOCATION]: "Allocation",
   [AUDIT_ENTITY.BILL]: "Bill",
   [AUDIT_ENTITY.HOUSEHOLD]: "Household",
@@ -336,7 +335,7 @@ const getRecentBillingCycles = (data: DashboardData, limit = 6) =>
     .sort((first, second) => second.startDate.localeCompare(first.startDate))
     .slice(0, limit)
 
-const getAwayTenantIdsOnDate = (data: DashboardData, dateValue: string) => {
+const getOutTenantIdsOnDate = (data: DashboardData, dateValue: string) => {
   const tenantIds = new Set<string>()
 
   for (const absence of data.absences) {
@@ -359,13 +358,13 @@ const getOccupancyTimelineData = (
   Array.from({ length: OCCUPANCY_TIMELINE_DAYS }, (_, index) => {
     const dateValue = addLocalDays(today, index)
     const activeTenantCount = getActiveTenants(data, dateValue).length
-    const awayTenantCount = getAwayTenantIdsOnDate(data, dateValue).size
+    const outTenantCount = getOutTenantIdsOnDate(data, dateValue).size
 
     return {
-      away: awayTenantCount,
       date: dateValue,
       label: formatCompactDateLabel(dateValue),
-      present: Math.max(activeTenantCount - awayTenantCount, 0),
+      out: outTenantCount,
+      present: Math.max(activeTenantCount - outTenantCount, 0),
     }
   })
 
@@ -464,35 +463,6 @@ function DashboardKpi({
       </p>
       <p className="mt-2 truncate text-xs text-muted-foreground">{detail}</p>
     </div>
-  )
-}
-
-function DashboardActionToolbar({ isAdmin }: { isAdmin: boolean }) {
-  return (
-    <ButtonGroup className="flex-wrap justify-start lg:justify-end">
-      {isAdmin ? (
-        <>
-          <Button asChild size="sm" variant="outline">
-            <Link href={"/dashboard/admin" as Route}>
-              <UserPlus />
-              Tenant
-            </Link>
-          </Button>
-          <Button asChild size="sm" variant="outline">
-            <Link href={"/dashboard/utilities" as Route}>
-              <ReceiptText />
-              Bill
-            </Link>
-          </Button>
-        </>
-      ) : null}
-      <Button asChild size="sm" variant="outline">
-        <Link href={"/dashboard/away" as Route}>
-          <CalendarPlus />
-          Away
-        </Link>
-      </Button>
-    </ButtonGroup>
   )
 }
 
@@ -685,7 +655,7 @@ function TenantRoster({
                                 Remove {tenant.displayName}?
                               </AlertDialogTitle>
                               <AlertDialogDescription>
-                                This removes the tenant, away dates, and bill
+                                This removes the tenant, calendar dates, and bill
                                 splits. The sign-in account stays.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
@@ -716,7 +686,6 @@ function TenantRoster({
 
 export function DashboardOverview({ data }: { data: DashboardData }) {
   const today = toLocalDateValue(new Date())
-  const isAdmin = data.user.role === USER_ROLE.ADMIN
   const activeTenants = getActiveTenants(data, today)
   const currentAbsences = getCurrentAbsences(data, today)
   const latestRun = getLatestAllocationRun(data)
@@ -744,16 +713,16 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
     activeTenants.length === 1
       ? "1 active tenant"
       : `${activeTenants.length} active tenants`
-  const awayDetail =
+  const outDetail =
     currentAbsences.length === 0
-      ? "No one away"
+      ? "No one out"
       : currentAbsences
           .map((absence) => absence.displayName)
           .slice(0, 2)
           .join(", ")
   const upcomingDetail = nextAbsence
     ? `${nextAbsence.displayName} · ${formatCompactDateLabel(nextAbsence.startDate)}`
-    : "No scheduled away"
+    : "No upcoming entries"
   const paymentDetail =
     paymentSummary.totalCents === 0
       ? "No allocations"
@@ -781,7 +750,6 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
         </div>
 
         <div className="grid gap-3 lg:justify-items-end">
-          <DashboardActionToolbar isAdmin={isAdmin} />
           <div className="text-sm lg:text-right">
             <p className="text-xs text-muted-foreground">Latest split</p>
             <p className="mt-1 font-mono font-medium tabular-nums">
@@ -798,13 +766,13 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
           value={`${presentTenantCount}/${activeTenants.length}`}
         />
         <DashboardKpi
-          detail={awayDetail}
-          label="Away now"
+          detail={outDetail}
+          label="Out today"
           value={String(currentAbsences.length)}
         />
         <DashboardKpi
           detail={upcomingDetail}
-          label="Upcoming away"
+          label="Upcoming"
           value={String(upcomingAbsences.length)}
         />
         <DashboardKpi
@@ -834,7 +802,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Away</p>
+              <p className="text-xs text-muted-foreground">Out</p>
               <p className="mt-1 font-mono text-2xl font-semibold tabular-nums">
                 {currentAbsences.length}
               </p>
@@ -843,7 +811,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
 
           <div className="mt-4">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-medium">Away now</h3>
+              <h3 className="text-sm font-medium">Out today</h3>
               <span className="text-xs text-muted-foreground">
                 {currentAbsences.length}
               </span>
@@ -871,7 +839,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
 
           <div className="mt-4">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-medium">Next away</h3>
+              <h3 className="text-sm font-medium">Next entry</h3>
               <span className="text-xs text-muted-foreground">
                 {upcomingAbsences.length}
               </span>
@@ -1017,9 +985,9 @@ export function DashboardCalendar({
     <section className="rounded-lg border bg-card">
       <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-semibold">Away calendar</h2>
+          <h2 className="font-semibold">Calendar</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Mark away dates and review current absences.
+            Select dates and review calendar entries.
           </p>
         </div>
         <CalendarHelpGuide />
@@ -1055,7 +1023,7 @@ function AuditLogPanel({
         <div>
           <CardTitle>Audit log</CardTitle>
           <CardDescription>
-            Filter operational changes across tenants, away ranges, and
+            Filter operational changes across tenants, calendar entries, and
             utilities.
           </CardDescription>
         </div>
