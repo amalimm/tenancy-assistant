@@ -29,7 +29,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   ButtonGroup,
-  ButtonGroupSeparator,
 } from "@/components/ui/button-group"
 import {
   Card,
@@ -669,14 +668,13 @@ function TenantRoster({
                           tenantId={tenant.id}
                           tenantName={tenant.displayName}
                         />
-                        <ButtonGroupSeparator />
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
                               aria-label={`Remove ${tenant.displayName}`}
-                              className="text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:border-destructive/40 focus-visible:ring-destructive/20"
+                              className="text-destructive hover:text-destructive focus-visible:border-destructive/40 focus-visible:ring-destructive/20"
                               size="icon-sm"
-                              variant="ghost"
+                              variant="outline"
                             >
                               <Trash2 />
                             </Button>
