@@ -65,6 +65,8 @@ import { requireSession } from "@features/auth/auth-server"
 import { AbsenceCalendarPanel } from "@features/calendar/absence-calendar-panel"
 import { CalendarHelpGuide } from "@features/calendar/calendar-help-guide"
 import { DashboardTabs } from "@features/dashboard/dashboard-tabs"
+import { TemporaryPasswordField } from "@features/household/temporary-password-field"
+import { TenantPasswordResetForm } from "@features/household/tenant-password-reset-form"
 import {
   addLocalDays,
   formatCurrency,
@@ -81,6 +83,7 @@ import {
   deleteAbsenceAction,
   deleteTenantAction,
   markPaymentAction,
+  regenerateTenantPasswordAction,
   runAllocationAction,
   updateAbsenceAction,
   uploadBillAction,
@@ -221,24 +224,24 @@ function HouseholdSetupCard({ isAdmin }: { isAdmin: boolean }) {
   )
 }
 
-function TenantStatusBadge({ isLinked }: { isLinked: boolean }) {
-  const Icon = isLinked ? CheckCircle2 : CircleAlert
+function TenantLoginBadge({ hasLogin }: { hasLogin: boolean }) {
+  const Icon = hasLogin ? CheckCircle2 : CircleAlert
 
   return (
-    <Badge className="gap-1" variant={isLinked ? "secondary" : "outline"}>
+    <Badge className="gap-1" variant={hasLogin ? "secondary" : "outline"}>
       <Icon />
-      {isLinked ? "Signed in" : "Needs sign-in"}
+      {hasLogin ? "Login ready" : "Needs password"}
     </Badge>
   )
 }
 
 function TenantRoster({
   isAdmin,
-  linkedTenantCount,
+  loginReadyTenantCount,
   tenants,
 }: {
   isAdmin: boolean
-  linkedTenantCount: number
+  loginReadyTenantCount: number
   tenants: DashboardData["tenants"]
 }) {
   return (
@@ -254,7 +257,7 @@ function TenantRoster({
           <Badge variant="outline">
             {tenants.length === 0
               ? "0 tenants"
-              : `${linkedTenantCount}/${tenants.length} signed in`}
+              : `${loginReadyTenantCount}/${tenants.length} logins ready`}
           </Badge>
         </CardAction>
       </CardHeader>
@@ -327,7 +330,7 @@ function TenantRoster({
                     )}
                   </TableCell>
                   <TableCell className="px-4 py-3">
-                    <TenantStatusBadge isLinked={tenant.isLinked} />
+                    <TenantLoginBadge hasLogin={tenant.isLinked} />
                   </TableCell>
                   {isAdmin ? (
                     <TableCell className="px-4 py-3 text-right">
@@ -342,39 +345,46 @@ function TenantRoster({
                           value={tenant.id}
                         />
                       </form>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            aria-label={`Remove ${tenant.displayName}`}
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:border-destructive/40 focus-visible:ring-destructive/20"
-                            size="icon-sm"
-                            variant="ghost"
-                          >
-                            <Trash2 />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Remove {tenant.displayName}?
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This removes the tenant, away dates, and bill
-                              splits. The sign-in account stays.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive/10 text-destructive hover:bg-destructive/20"
-                              form={`delete-tenant-${tenant.id}`}
-                              type="submit"
+                      <div className="flex justify-end gap-2">
+                        <TenantPasswordResetForm
+                          action={regenerateTenantPasswordAction}
+                          tenantId={tenant.id}
+                          tenantName={tenant.displayName}
+                        />
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              aria-label={`Remove ${tenant.displayName}`}
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:border-destructive/40 focus-visible:ring-destructive/20"
+                              size="icon-sm"
+                              variant="ghost"
                             >
-                              Remove tenant
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                              <Trash2 />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Remove {tenant.displayName}?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This removes the tenant, away dates, and bill
+                                splits. The sign-in account stays.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive/10 text-destructive hover:bg-destructive/20"
+                                form={`delete-tenant-${tenant.id}`}
+                                type="submit"
+                              >
+                                Remove tenant
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </TableCell>
                   ) : null}
                 </TableRow>
@@ -402,7 +412,7 @@ export default async function DashboardPage() {
 
   const latestRun = getLatestAllocationRun(data)
   const openPaymentCount = getOpenPaymentCount(data)
-  const linkedTenantCount = data.tenants.filter(
+  const loginReadyTenantCount = data.tenants.filter(
     (tenant) => tenant.isLinked,
   ).length
   const billUploadCount = data.billingCycles.reduce(
@@ -415,8 +425,8 @@ export default async function DashboardPage() {
       label: "Tenant roster created",
     },
     {
-      complete: linkedTenantCount > 0,
-      label: "At least one tenant has signed in",
+      complete: loginReadyTenantCount > 0,
+      label: "Tenant logins created",
     },
     {
       complete: data.billingCycles.length > 0,
@@ -456,7 +466,7 @@ export default async function DashboardPage() {
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricTile
-              detail={`${linkedTenantCount} signed-in account${linkedTenantCount === 1 ? "" : "s"}`}
+              detail={`${loginReadyTenantCount} tenant login${loginReadyTenantCount === 1 ? "" : "s"} ready`}
               label="Tenants"
               value={String(data.tenants.length)}
             />
@@ -534,7 +544,7 @@ export default async function DashboardPage() {
                 <CardHeader className="border-b py-4">
                   <CardTitle>Create tenant</CardTitle>
                   <CardDescription>
-                    Add a tenant with the email they use to sign in.
+                    Add a tenant and generate their temporary password.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-5">
@@ -549,9 +559,14 @@ export default async function DashboardPage() {
                       <Input id="displayName" name="displayName" />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="email">Google email</Label>
+                      <Label htmlFor="email">Tenant email</Label>
                       <Input id="email" name="email" type="email" />
                     </div>
+                    <TemporaryPasswordField
+                      description="Share this with the tenant after creating the account."
+                      id="temporaryPassword"
+                      name="temporaryPassword"
+                    />
                     <DateRangeFields
                       allowOpenRange
                       endName="tenancyEndDate"
@@ -575,7 +590,7 @@ export default async function DashboardPage() {
 
             <TenantRoster
               isAdmin={isAdmin}
-              linkedTenantCount={linkedTenantCount}
+              loginReadyTenantCount={loginReadyTenantCount}
               tenants={data.tenants}
             />
           </section>

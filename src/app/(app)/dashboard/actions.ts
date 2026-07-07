@@ -2,10 +2,11 @@
 
 import { and, eq, inArray, isNull } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
+import { headers } from "next/headers"
 import { put } from "@vercel/blob"
 import { z } from "zod"
 
-import { hasBlobConfig } from "@config/env"
+import { env, hasBlobConfig } from "@config/env"
 import { db } from "@db/client"
 import {
   absenceRange,
@@ -30,7 +31,7 @@ import {
   type AppAction,
   type AppSubject,
 } from "@features/auth/permissions"
-import { requireRole, requireSession } from "@features/auth/auth-server"
+import { auth, requireRole, requireSession } from "@features/auth/auth-server"
 
 const dateRangeSchema = z
   .object({
@@ -52,6 +53,7 @@ const createTenantSchema = z.object({
   email: z.string().trim().email(),
   householdId: z.string().min(1),
   notes: z.string().trim().optional(),
+  temporaryPassword: z.string().min(10),
   tenancyEndDate: z.string().trim().optional(),
   tenancyStartDate: z.string().min(10),
 })
@@ -70,6 +72,11 @@ const deleteAbsenceSchema = z.object({
 })
 
 const deleteTenantSchema = z.object({
+  tenantId: z.string().min(1),
+})
+
+const regenerateTenantPasswordSchema = z.object({
+  temporaryPassword: z.string().min(10),
   tenantId: z.string().min(1),
 })
 
@@ -119,6 +126,12 @@ const parseAmountCents = (value: string) => {
 const normalizeEmail = (email: string) => email.trim().toLowerCase()
 
 const createId = () => crypto.randomUUID()
+
+const assertTenantEmail = (email: string) => {
+  if (env.adminEmails.includes(email)) {
+    throw new Error("Admin emails must use Google sign-in, not tenant login.")
+  }
+}
 
 const getCurrentUserRole = async (userId: string): Promise<UserRole> => {
   const [currentUser] = await db
@@ -193,6 +206,73 @@ const assertWritableAbsenceTenant = async (tenantId: string) => {
   return session
 }
 
+const setTenantPassword = async (userId: string, temporaryPassword: string) => {
+  await auth.api.setUserPassword({
+    body: {
+      newPassword: temporaryPassword,
+      userId,
+    },
+    headers: await headers(),
+  })
+}
+
+const ensureTenantLogin = async ({
+  displayName,
+  email,
+  householdId,
+  temporaryPassword,
+}: {
+  displayName: string
+  email: string
+  householdId: string
+  temporaryPassword: string
+}) => {
+  assertTenantEmail(email)
+
+  const [existingUser] = await db
+    .select()
+    .from(user)
+    .where(eq(user.email, email))
+    .limit(1)
+
+  if (existingUser) {
+    await setTenantPassword(existingUser.id, temporaryPassword)
+    await db
+      .update(user)
+      .set({
+        activeHouseholdId: householdId,
+        role: USER_ROLE.TENANT,
+        updatedAt: new Date(),
+      })
+      .where(eq(user.id, existingUser.id))
+
+    return existingUser.id
+  }
+
+  const createdUser = await auth.api.createUser({
+    body: {
+      data: {
+        activeHouseholdId: householdId,
+      },
+      email,
+      name: displayName,
+      password: temporaryPassword,
+    },
+    headers: await headers(),
+  })
+
+  await db
+    .update(user)
+    .set({
+      activeHouseholdId: householdId,
+      role: USER_ROLE.TENANT,
+      updatedAt: new Date(),
+    })
+    .where(eq(user.id, createdUser.user.id))
+
+  return createdUser.user.id
+}
+
 export const createHouseholdAction = async (formData: FormData) => {
   const session = await requireRole([USER_ROLE.ADMIN])
   const parsed = createHouseholdSchema.parse({
@@ -222,17 +302,41 @@ export const createTenantAction = async (formData: FormData) => {
     email: getString(formData, "email"),
     householdId: getString(formData, "householdId"),
     notes: getString(formData, "notes"),
+    temporaryPassword: getString(formData, "temporaryPassword"),
     tenancyEndDate: getString(formData, "tenancyEndDate"),
     tenancyStartDate: getString(formData, "tenancyStartDate"),
   })
   const tenantId = createId()
+  const normalizedEmail = normalizeEmail(parsed.email)
+  const [existingTenant] = await db
+    .select()
+    .from(tenant)
+    .where(
+      and(
+        eq(tenant.householdId, parsed.householdId),
+        eq(tenant.email, normalizedEmail),
+      ),
+    )
+    .limit(1)
+
+  if (existingTenant) {
+    throw new Error("A tenant with this email already exists.")
+  }
+
+  const userId = await ensureTenantLogin({
+    displayName: parsed.displayName,
+    email: normalizedEmail,
+    householdId: parsed.householdId,
+    temporaryPassword: parsed.temporaryPassword,
+  })
 
   await db.insert(tenant).values({
     displayName: parsed.displayName,
-    email: normalizeEmail(parsed.email),
+    email: normalizedEmail,
     householdId: parsed.householdId,
     id: tenantId,
     notes: parsed.notes,
+    userId,
   })
   await db.insert(tenancyPeriod).values({
     endDate: parsed.tenancyEndDate || null,
@@ -240,6 +344,44 @@ export const createTenantAction = async (formData: FormData) => {
     startDate: parsed.tenancyStartDate,
     tenantId,
   })
+
+  revalidatePath("/dashboard")
+}
+
+export const regenerateTenantPasswordAction = async (formData: FormData) => {
+  const session = await requireRole([USER_ROLE.ADMIN])
+  const parsed = regenerateTenantPasswordSchema.parse({
+    temporaryPassword: getString(formData, "temporaryPassword"),
+    tenantId: getString(formData, "tenantId"),
+  })
+  const [existingTenant] = await db
+    .select()
+    .from(tenant)
+    .where(eq(tenant.id, parsed.tenantId))
+    .limit(1)
+
+  if (!existingTenant) {
+    throw new Error("Tenant not found.")
+  }
+
+  if (
+    session.user.activeHouseholdId &&
+    existingTenant.householdId !== session.user.activeHouseholdId
+  ) {
+    throw new Error("Tenant does not belong to the active household.")
+  }
+
+  const userId = await ensureTenantLogin({
+    displayName: existingTenant.displayName,
+    email: normalizeEmail(existingTenant.email),
+    householdId: existingTenant.householdId,
+    temporaryPassword: parsed.temporaryPassword,
+  })
+
+  await db
+    .update(tenant)
+    .set({ userId, updatedAt: new Date() })
+    .where(eq(tenant.id, existingTenant.id))
 
   revalidatePath("/dashboard")
 }
