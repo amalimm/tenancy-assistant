@@ -1000,6 +1000,7 @@ export function DashboardCalendar({
           currentTenantId={data.currentTenantId}
           deleteAbsenceAction={deleteAbsenceAction}
           tenants={data.tenants.map((tenant) => ({
+            calendarColor: tenant.calendarColor,
             displayName: tenant.displayName,
             id: tenant.id,
           }))}

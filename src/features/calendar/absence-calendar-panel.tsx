@@ -24,6 +24,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { DateRangePicker } from "@shared/ui/date-range-picker"
 
+import { DEFAULT_CALENDAR_COLOR } from "./calendar-colors"
 import {
   AbsenceCalendar,
   type AbsenceCalendarMoveInput,
@@ -65,7 +66,12 @@ export function AbsenceCalendarPanel({
   const [pendingDeleteId, setPendingDeleteId] = useState("")
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const tenantOptions = useMemo(
-    () => tenants.map((tenant) => ({ label: tenant.displayName, value: tenant.id })),
+    () =>
+      tenants.map((tenant) => ({
+        calendarColor: tenant.calendarColor,
+        label: tenant.displayName,
+        value: tenant.id,
+      })),
     [tenants],
   )
   const canEditCalendar = tenants.length > 0 && Boolean(defaultTenantId)
@@ -75,6 +81,16 @@ export function AbsenceCalendarPanel({
   const selectedTenantLabel =
     tenantOptions.find((tenant) => tenant.value === selectedTenantId)?.label ??
     "No tenant selected"
+  const selectedTenantColor =
+    tenantOptions.find((tenant) => tenant.value === selectedTenantId)
+      ?.calendarColor ?? DEFAULT_CALENDAR_COLOR
+  const selectedRange = useMemo(
+    () => ({
+      endDate: selectedEndDate,
+      startDate: selectedStartDate,
+    }),
+    [selectedEndDate, selectedStartDate],
+  )
   const hasValidSelectedRange = isValidExclusiveRange(
     selectedStartDate,
     selectedEndDate,
@@ -117,10 +133,8 @@ export function AbsenceCalendarPanel({
         absences={absences}
         canEdit={canEditCalendar}
         currentTenantId={currentTenantId}
-        draftRange={{
-          endDate: selectedEndDate,
-          startDate: selectedStartDate,
-        }}
+        selectedRange={selectedRange}
+        selectedTenantColor={selectedTenantColor}
         emptyState={
           canEditCalendar
             ? null
@@ -169,7 +183,14 @@ export function AbsenceCalendarPanel({
               <SelectContent>
                 {tenantOptions.map((tenant) => (
                   <SelectItem key={tenant.value} value={tenant.value}>
-                    {tenant.label}
+                    <span className="flex items-center gap-2">
+                      <span
+                        aria-hidden
+                        className="size-2.5 rounded-full"
+                        style={{ backgroundColor: tenant.calendarColor }}
+                      />
+                      {tenant.label}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>

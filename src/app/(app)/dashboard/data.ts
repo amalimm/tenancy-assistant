@@ -21,6 +21,7 @@ import {
   type UtilityType,
   type UserRole,
 } from "@db/schema"
+import { getTenantCalendarColor } from "@features/calendar/calendar-colors"
 
 export interface DashboardUser {
   email: string
@@ -36,6 +37,7 @@ export interface DashboardHousehold {
 }
 
 export interface DashboardTenant {
+  calendarColor: string
   displayName: string
   email: string
   id: string
@@ -51,6 +53,7 @@ interface TenantPeriodView {
 }
 
 export interface DashboardAbsence {
+  calendarColor: string
   displayName: string
   endDate: string
   id: string
@@ -261,8 +264,17 @@ const loadAbsences = async (tenantRows: (typeof tenant.$inferSelect)[]) => {
   const tenantNameById = new Map(
     tenantRows.map((tenantRow) => [tenantRow.id, tenantRow.displayName]),
   )
+  const tenantColorById = new Map(
+    tenantRows.map((tenantRow) => [
+      tenantRow.id,
+      getTenantCalendarColor(tenantRow.id, tenantRow.calendarColor),
+    ]),
+  )
 
   return absenceRows.map<DashboardAbsence>((absence) => ({
+    calendarColor:
+      tenantColorById.get(absence.tenantId) ??
+      getTenantCalendarColor(absence.tenantId, null),
     displayName: tenantNameById.get(absence.tenantId) ?? "Tenant",
     endDate: absence.endDate,
     id: absence.id,
@@ -432,6 +444,7 @@ export const getDashboardData = async (
   const tenantIds = tenantRows.map((tenantRow) => tenantRow.id)
   const periodEndByTenantId = await getTenantPeriodsByTenantId(tenantIds)
   const tenants = tenantRows.map<DashboardTenant>((tenantRow) => ({
+    calendarColor: getTenantCalendarColor(tenantRow.id, tenantRow.calendarColor),
     displayName: tenantRow.displayName,
     email: tenantRow.email,
     id: tenantRow.id,

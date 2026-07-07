@@ -216,6 +216,7 @@ export const tenant = sqliteTable(
     userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
     displayName: text("display_name").notNull(),
     email: text("email").notNull(),
+    calendarColor: text("calendar_color"),
     notes: text("notes"),
     createdAt,
     updatedAt,

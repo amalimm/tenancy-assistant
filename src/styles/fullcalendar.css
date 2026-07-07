@@ -3,13 +3,22 @@
   --fc-page-bg-color: var(--background);
   --fc-neutral-bg-color: var(--muted);
   --fc-today-bg-color: color-mix(in oklab, var(--primary) 9%, transparent);
-  --fc-event-bg-color: var(--primary);
-  --fc-event-border-color: var(--primary);
-  --fc-event-text-color: var(--primary-foreground);
-  --calendar-draft-bg: color-mix(in oklab, var(--foreground) 12%, transparent);
-  --calendar-draft-border: color-mix(in oklab, var(--foreground) 22%, transparent);
-  --calendar-draft-strong-bg: color-mix(in oklab, var(--foreground) 16%, transparent);
-  --calendar-draft-text: var(--muted-foreground);
+  --calendar-event-bg: color-mix(in oklab, var(--foreground) 72%, var(--background));
+  --calendar-event-border: color-mix(in oklab, var(--foreground) 64%, var(--background));
+  --calendar-event-text: var(--primary-foreground);
+  --fc-event-bg-color: var(--calendar-event-bg);
+  --fc-event-border-color: var(--calendar-event-border);
+  --fc-event-text-color: var(--calendar-event-text);
+  --calendar-selection-bg: color-mix(
+    in oklab,
+    var(--calendar-selection-color, var(--calendar-event-bg)) 18%,
+    transparent
+  );
+  --calendar-selection-border: color-mix(
+    in oklab,
+    var(--calendar-selection-color, var(--calendar-event-bg)) 42%,
+    transparent
+  );
   font-size: 0.875rem;
 }
 
@@ -40,29 +49,16 @@
 }
 
 .fc .fc-highlight {
-  border: 1px solid var(--calendar-draft-border);
+  border: 1px solid var(--calendar-selection-border);
   border-radius: calc(var(--radius) - 4px);
-  background: var(--calendar-draft-bg);
-}
-
-.fc .calendar-draft-event,
-.fc .fc-event.calendar-draft-event {
-  border-color: var(--calendar-draft-border);
-  background: var(--calendar-draft-bg);
-  box-shadow: none;
-}
-
-.fc .calendar-draft-event .fc-event-main {
-  color: var(--calendar-draft-text);
+  background: var(--calendar-selection-bg);
 }
 
 .fc .fc-event-mirror,
 .fc .fc-event.fc-event-mirror,
 .fc .fc-event.fc-event-dragging {
-  border-color: var(--calendar-draft-border);
-  background: var(--calendar-draft-strong-bg);
   box-shadow: none;
-  opacity: 0.86;
+  opacity: 0.72;
 }
 
 .fc .fc-button-primary {

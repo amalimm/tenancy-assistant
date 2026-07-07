@@ -8,20 +8,30 @@ import type {
   DatesSetArg,
   EventClickArg,
   EventDropArg,
+  EventHoveringArg,
   EventInput,
 } from "@fullcalendar/core"
+import type { EventResizeDoneArg } from "@fullcalendar/interaction"
 import { ChevronLeft, ChevronRight, UserPlus } from "lucide-react"
-import { useMemo, useRef, useState } from "react"
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { addLocalDays, formatLocalDate } from "@shared/lib/format"
+import {
+  DEFAULT_CALENDAR_COLOR,
+  DEFAULT_CALENDAR_TEXT_COLOR,
+} from "./calendar-colors"
+import { getCalendarRangeUpdate, toDateOnly } from "./calendar-range-update"
 
 export interface AbsenceCalendarTenant {
+  calendarColor: string
   displayName: string
   id: string
 }
 
 export interface AbsenceCalendarRange {
+  calendarColor: string
   displayName: string
   endDate: string
   id: string
@@ -37,7 +47,7 @@ export interface AbsenceCalendarEmptyState {
   title: string
 }
 
-export interface AbsenceCalendarDraftRange {
+export interface AbsenceCalendarSelectedRange {
   endDate: string
   startDate: string
 }
@@ -52,16 +62,13 @@ export interface AbsenceCalendarProps {
   absences: AbsenceCalendarRange[]
   canEdit: boolean
   currentTenantId: string | null
-  draftRange?: AbsenceCalendarDraftRange | null
   emptyState?: AbsenceCalendarEmptyState | null
   onDeleteAbsence: (absenceId: string) => void
   onMoveAbsence: (move: AbsenceCalendarMoveInput) => Promise<void> | void
   onSelectRange: (startDate: string, endDate: string) => void
+  selectedRange?: AbsenceCalendarSelectedRange | null
+  selectedTenantColor?: string | null
 }
-
-const toDateOnly = (dateValue: string) => dateValue.slice(0, 10)
-
-const DRAFT_SELECTION_EVENT_ID = "calendar-draft-selection"
 
 const CALENDAR_NAV_ACTION = {
   NEXT: "next",
@@ -72,64 +79,97 @@ const CALENDAR_NAV_ACTION = {
 type CalendarNavAction =
   (typeof CALENDAR_NAV_ACTION)[keyof typeof CALENDAR_NAV_ACTION]
 
-const isValidDraftRange = (
-  draftRange: AbsenceCalendarDraftRange | null | undefined,
+const isValidSelectedRange = (
+  selectedRange: AbsenceCalendarSelectedRange | null | undefined,
 ) =>
   Boolean(
-    draftRange &&
-      draftRange.startDate.length >= 10 &&
-      draftRange.endDate.length >= 10 &&
-      draftRange.endDate > draftRange.startDate,
+    selectedRange &&
+      selectedRange.startDate.length >= 10 &&
+      selectedRange.endDate.length >= 10 &&
+      selectedRange.endDate > selectedRange.startDate,
   )
 
-const isDraftEventId = (eventId: string) => eventId === DRAFT_SELECTION_EVENT_ID
-
-const toEvents = (
-  absences: AbsenceCalendarRange[],
-  draftRange: AbsenceCalendarDraftRange | null | undefined,
-): EventInput[] => {
-  const events = absences.map<EventInput>((absence) => ({
-    id: absence.id,
-    title: `${absence.displayName}${absence.reason ? ` - ${absence.reason}` : ""}`,
-    start: absence.startDate,
-    end: absence.endDate,
+const toEvents = (absences: AbsenceCalendarRange[]): EventInput[] =>
+  absences.map((absence) => ({
     allDay: true,
+    backgroundColor: absence.calendarColor,
+    borderColor: absence.calendarColor,
+    end: absence.endDate,
     extendedProps: {
+      calendarColor: absence.calendarColor,
+      displayName: absence.displayName,
+      endDate: absence.endDate,
+      reason: absence.reason,
+      startDate: absence.startDate,
       tenantId: absence.tenantId,
     },
+    id: absence.id,
+    start: absence.startDate,
+    textColor: DEFAULT_CALENDAR_TEXT_COLOR,
+    title: `${absence.displayName}${absence.reason ? ` - ${absence.reason}` : ""}`,
   }))
 
-  if (isValidDraftRange(draftRange) && draftRange) {
-    events.push({
-      allDay: true,
-      classNames: ["calendar-draft-event"],
-      editable: false,
-      end: draftRange.endDate,
-      id: DRAFT_SELECTION_EVENT_ID,
-      start: draftRange.startDate,
-      title: "Selected dates",
-    })
+interface CalendarHoverCard {
+  calendarColor: string
+  displayName: string
+  endDate: string
+  left: number
+  reason: string | null
+  startDate: string
+  top: number
+}
+
+type CalendarStyle = CSSProperties & {
+  "--calendar-selection-color": string
+}
+
+const formatHoverRange = (startDate: string, endDate: string) => {
+  const inclusiveEndDate = addLocalDays(endDate, -1)
+
+  if (startDate === inclusiveEndDate) {
+    return formatLocalDate(startDate)
   }
 
-  return events
+  return `${formatLocalDate(startDate)} to ${formatLocalDate(inclusiveEndDate)}`
 }
 
 export function AbsenceCalendar({
   absences,
   canEdit,
   currentTenantId,
-  draftRange = null,
   emptyState = null,
   onDeleteAbsence,
   onMoveAbsence,
   onSelectRange,
+  selectedRange = null,
+  selectedTenantColor = DEFAULT_CALENDAR_COLOR,
 }: AbsenceCalendarProps) {
   const calendarRef = useRef<FullCalendar | null>(null)
   const [calendarTitle, setCalendarTitle] = useState("Calendar")
-  const calendarEvents = useMemo(
-    () => toEvents(absences, draftRange),
-    [absences, draftRange],
-  )
+  const [hoverCard, setHoverCard] = useState<CalendarHoverCard | null>(null)
+  const calendarEvents = useMemo(() => toEvents(absences), [absences])
+  const calendarStyle: CalendarStyle = {
+    "--calendar-selection-color": selectedTenantColor ?? DEFAULT_CALENDAR_COLOR,
+  }
+
+  useEffect(() => {
+    const calendarApi = calendarRef.current?.getApi()
+
+    if (!calendarApi) {
+      return
+    }
+
+    if (!isValidSelectedRange(selectedRange) || !selectedRange) {
+      calendarApi.unselect()
+      return
+    }
+
+    calendarApi.select({
+      allDay: true,
+      end: selectedRange.endDate,
+      start: selectedRange.startDate,
+    })
+  }, [selectedRange])
 
   const handleCalendarNav = (action: CalendarNavAction) => {
     const calendarApi = calendarRef.current?.getApi()
@@ -164,43 +204,86 @@ export function AbsenceCalendar({
   }
 
   const handleEventClick = (click: EventClickArg) => {
-    if (!canEdit || isDraftEventId(click.event.id)) {
+    if (!canEdit) {
       return
     }
 
     onDeleteAbsence(click.event.id)
   }
 
-  const handleEventDrop = (drop: EventDropArg) => {
+  const handleEventRangeChange = ({
+    event,
+    revert,
+  }: {
+    event: EventDropArg["event"] | EventResizeDoneArg["event"]
+    revert: () => void
+  }) => {
     if (!canEdit) {
-      drop.revert()
+      revert()
       return
     }
 
-    if (isDraftEventId(drop.event.id)) {
-      drop.revert()
+    const rangeUpdate = getCalendarRangeUpdate(event)
+
+    if (!rangeUpdate) {
+      revert()
       return
     }
 
-    const startDate = drop.event.startStr
-    const endDate = drop.event.endStr
+    void Promise.resolve(onMoveAbsence(rangeUpdate)).catch(() => revert())
+  }
 
-    if (startDate.length === 0 || endDate.length === 0) {
-      drop.revert()
+  const handleEventDrop = (drop: EventDropArg) => {
+    handleEventRangeChange({
+      event: drop.event,
+      revert: drop.revert,
+    })
+  }
+
+  const handleEventResize = (resize: EventResizeDoneArg) => {
+    handleEventRangeChange({
+      event: resize.event,
+      revert: resize.revert,
+    })
+  }
+
+  const handleEventMouseEnter = (hover: EventHoveringArg) => {
+    const rect = hover.el.getBoundingClientRect()
+    const displayName = hover.event.extendedProps.displayName
+    const startDate = hover.event.extendedProps.startDate
+    const endDate = hover.event.extendedProps.endDate
+    const reason = hover.event.extendedProps.reason
+    const calendarColor = hover.event.extendedProps.calendarColor
+
+    if (
+      typeof displayName !== "string" ||
+      typeof startDate !== "string" ||
+      typeof endDate !== "string" ||
+      typeof calendarColor !== "string"
+    ) {
       return
     }
 
-    void Promise.resolve(
-      onMoveAbsence({
-        absenceId: drop.event.id,
-        endDate: toDateOnly(endDate),
-        startDate: toDateOnly(startDate),
-      }),
-    ).catch(() => drop.revert())
+    setHoverCard({
+      calendarColor,
+      displayName,
+      endDate,
+      left: Math.min(
+        Math.max(rect.left + rect.width / 2, 128),
+        window.innerWidth - 128,
+      ),
+      reason: typeof reason === "string" && reason.length > 0 ? reason : null,
+      startDate,
+      top: rect.top,
+    })
+  }
+
+  const handleEventMouseLeave = () => {
+    setHoverCard(null)
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" style={calendarStyle}>
       <div className="grid items-center gap-3 md:grid-cols-[1fr_auto_1fr]">
         <div className="flex items-center gap-1.5">
           <Button
@@ -249,6 +332,10 @@ export function AbsenceCalendar({
             eventLongPressDelay={100}
             eventClick={handleEventClick}
             eventDrop={handleEventDrop}
+            eventMouseEnter={handleEventMouseEnter}
+            eventMouseLeave={handleEventMouseLeave}
+            eventResizableFromStart
+            eventResize={handleEventResize}
             events={calendarEvents}
             headerToolbar={false}
             height="auto"
@@ -259,8 +346,36 @@ export function AbsenceCalendar({
             selectLongPressDelay={100}
             selectMirror
             select={handleSelect}
+            unselectAuto={false}
           />
         </div>
+        {hoverCard ? (
+          <div
+            className="pointer-events-none fixed z-50 w-56 -translate-x-1/2 -translate-y-full rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg"
+            style={{
+              borderColor: hoverCard.calendarColor,
+              left: hoverCard.left,
+              top: hoverCard.top - 8,
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="size-2.5 rounded-full"
+                style={{ backgroundColor: hoverCard.calendarColor }}
+              />
+              <p className="truncate text-sm font-medium">
+                {hoverCard.displayName}
+              </p>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {formatHoverRange(hoverCard.startDate, hoverCard.endDate)}
+            </p>
+            {hoverCard.reason ? (
+              <p className="mt-2 text-sm leading-5">{hoverCard.reason}</p>
+            ) : null}
+          </div>
+        ) : null}
         {!canEdit && emptyState ? (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/75 p-5 backdrop-blur-[1px]">
             <div className="grid max-w-xs justify-items-center rounded-lg border bg-card p-4 text-center shadow-sm">
