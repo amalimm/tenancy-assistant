@@ -37,9 +37,72 @@ export const ALLOCATION_STATUS_VALUES = [
   ALLOCATION_STATUS.FINAL,
 ] as const
 
+export const UTILITY_TYPE = {
+  ELECTRICITY: "electricity",
+  INTERNET: "internet",
+  OTHER: "other",
+  WATER: "water",
+} as const
+
+export const UTILITY_TYPE_VALUES = [
+  UTILITY_TYPE.ELECTRICITY,
+  UTILITY_TYPE.WATER,
+  UTILITY_TYPE.INTERNET,
+  UTILITY_TYPE.OTHER,
+] as const
+
+export const AUDIT_ACTION = {
+  ABSENCE_CREATED: "absence.created",
+  ABSENCE_DELETED: "absence.deleted",
+  ABSENCE_UPDATED: "absence.updated",
+  ALLOCATION_RUN: "allocation.run",
+  BILL_CREATED: "bill.created",
+  BILL_UPLOADED: "bill.uploaded",
+  HOUSEHOLD_CREATED: "household.created",
+  PAYMENT_UPDATED: "payment.updated",
+  TENANT_CREATED: "tenant.created",
+  TENANT_DELETED: "tenant.deleted",
+  TENANT_PASSWORD_RESET: "tenant.password_reset",
+} as const
+
+export const AUDIT_ACTION_VALUES = [
+  AUDIT_ACTION.HOUSEHOLD_CREATED,
+  AUDIT_ACTION.TENANT_CREATED,
+  AUDIT_ACTION.TENANT_DELETED,
+  AUDIT_ACTION.TENANT_PASSWORD_RESET,
+  AUDIT_ACTION.ABSENCE_CREATED,
+  AUDIT_ACTION.ABSENCE_UPDATED,
+  AUDIT_ACTION.ABSENCE_DELETED,
+  AUDIT_ACTION.BILL_CREATED,
+  AUDIT_ACTION.BILL_UPLOADED,
+  AUDIT_ACTION.ALLOCATION_RUN,
+  AUDIT_ACTION.PAYMENT_UPDATED,
+] as const
+
+export const AUDIT_ENTITY = {
+  ABSENCE: "absence",
+  ALLOCATION: "allocation",
+  BILL: "bill",
+  HOUSEHOLD: "household",
+  PAYMENT: "payment",
+  TENANT: "tenant",
+} as const
+
+export const AUDIT_ENTITY_VALUES = [
+  AUDIT_ENTITY.HOUSEHOLD,
+  AUDIT_ENTITY.TENANT,
+  AUDIT_ENTITY.ABSENCE,
+  AUDIT_ENTITY.BILL,
+  AUDIT_ENTITY.ALLOCATION,
+  AUDIT_ENTITY.PAYMENT,
+] as const
+
 export type UserRole = (typeof USER_ROLE_VALUES)[number]
 export type PaymentStatus = (typeof PAYMENT_STATUS_VALUES)[number]
 export type AllocationStatus = (typeof ALLOCATION_STATUS_VALUES)[number]
+export type UtilityType = (typeof UTILITY_TYPE_VALUES)[number]
+export type AuditAction = (typeof AUDIT_ACTION_VALUES)[number]
+export type AuditEntity = (typeof AUDIT_ENTITY_VALUES)[number]
 
 const createdAt = integer("created_at", { mode: "timestamp_ms" })
   .notNull()
@@ -189,6 +252,9 @@ export const billingCycle = sqliteTable(
     startDate: text("start_date").notNull(),
     endDate: text("end_date").notNull(),
     totalAmountCents: integer("total_amount_cents").notNull(),
+    utilityType: text("utility_type", { enum: UTILITY_TYPE_VALUES })
+      .notNull()
+      .default(UTILITY_TYPE.ELECTRICITY),
     utilityProvider: text("utility_provider").notNull().default("SEB"),
     notes: text("notes"),
     createdAt,
@@ -300,6 +366,33 @@ export const payment = sqliteTable(
   (table) => [uniqueIndex("payment_allocation_line_idx").on(table.allocationLineId)],
 )
 
+export const auditLog = sqliteTable(
+  "audit_log",
+  {
+    id: text("id").primaryKey(),
+    householdId: text("household_id")
+      .notNull()
+      .references(() => household.id, { onDelete: "cascade" }),
+    actorUserId: text("actor_user_id")
+      .notNull()
+      .references(() => user.id),
+    actorEmail: text("actor_email").notNull(),
+    action: text("action", { enum: AUDIT_ACTION_VALUES }).notNull(),
+    entityType: text("entity_type", { enum: AUDIT_ENTITY_VALUES }).notNull(),
+    entityId: text("entity_id"),
+    targetLabel: text("target_label"),
+    metadata: text("metadata"),
+    createdAt,
+  },
+  (table) => [
+    index("audit_log_household_idx").on(table.householdId),
+    index("audit_log_action_idx").on(table.action),
+    index("audit_log_entity_idx").on(table.entityType),
+    index("audit_log_actor_idx").on(table.actorEmail),
+    index("audit_log_created_at_idx").on(table.createdAt),
+  ],
+)
+
 export const userRelations = relations(user, ({ many }) => ({
   accounts: many(account),
   sessions: many(session),
@@ -312,6 +405,7 @@ export const householdRelations = relations(household, ({ many, one }) => ({
   }),
   tenants: many(tenant),
   billingCycles: many(billingCycle),
+  auditLogs: many(auditLog),
 }))
 
 export const tenantRelations = relations(tenant, ({ many, one }) => ({

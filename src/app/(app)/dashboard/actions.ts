@@ -10,6 +10,8 @@ import { env, hasBlobConfig } from "@config/env"
 import { db } from "@db/client"
 import {
   absenceRange,
+  AUDIT_ACTION,
+  AUDIT_ENTITY,
   allocationLine,
   allocationRun,
   billUpload,
@@ -19,10 +21,13 @@ import {
   PAYMENT_STATUS,
   tenant,
   tenancyPeriod,
+  UTILITY_TYPE,
+  UTILITY_TYPE_VALUES,
   user,
   USER_ROLE,
   type UserRole,
 } from "@db/schema"
+import { recordAuditLog } from "@features/audit/audit-log"
 import { calculateAllocation } from "@features/billing/allocation"
 import {
   APP_ACTION,
@@ -85,6 +90,7 @@ const createBillingCycleSchema = dateRangeSchema.extend({
   name: z.string().trim().min(1),
   notes: z.string().trim().optional(),
   totalAmount: z.string().trim().min(1),
+  utilityType: z.enum(UTILITY_TYPE_VALUES).default(UTILITY_TYPE.ELECTRICITY),
   utilityProvider: z.string().trim().min(1).default("SEB"),
 })
 
@@ -126,6 +132,26 @@ const parseAmountCents = (value: string) => {
 const normalizeEmail = (email: string) => email.trim().toLowerCase()
 
 const createId = () => crypto.randomUUID()
+
+const revalidateDashboard = () => {
+  revalidatePath("/dashboard")
+}
+
+const revalidateAdmin = () => {
+  revalidateDashboard()
+  revalidatePath("/dashboard/admin")
+}
+
+const revalidateAway = () => {
+  revalidateDashboard()
+  revalidatePath("/dashboard/away")
+}
+
+const revalidateUtilities = () => {
+  revalidateDashboard()
+  revalidatePath("/dashboard/utilities")
+  revalidatePath("/dashboard/electricity")
+}
 
 const assertTenantEmail = (email: string) => {
   if (env.adminEmails.includes(email)) {
@@ -291,12 +317,24 @@ export const createHouseholdAction = async (formData: FormData) => {
     .update(user)
     .set({ activeHouseholdId: householdId, updatedAt: new Date() })
     .where(eq(user.id, session.user.id))
+  await recordAuditLog({
+    action: AUDIT_ACTION.HOUSEHOLD_CREATED,
+    actorEmail: session.user.email,
+    actorUserId: session.user.id,
+    entityId: householdId,
+    entityType: AUDIT_ENTITY.HOUSEHOLD,
+    householdId,
+    metadata: {
+      hasAddress: Boolean(parsed.address),
+    },
+    targetLabel: parsed.name,
+  })
 
-  revalidatePath("/dashboard")
+  revalidateAdmin()
 }
 
 export const createTenantAction = async (formData: FormData) => {
-  await requireRole([USER_ROLE.ADMIN])
+  const session = await requireRole([USER_ROLE.ADMIN])
   const parsed = createTenantSchema.parse({
     displayName: getString(formData, "displayName"),
     email: getString(formData, "email"),
@@ -344,8 +382,23 @@ export const createTenantAction = async (formData: FormData) => {
     startDate: parsed.tenancyStartDate,
     tenantId,
   })
+  await recordAuditLog({
+    action: AUDIT_ACTION.TENANT_CREATED,
+    actorEmail: session.user.email,
+    actorUserId: session.user.id,
+    entityId: tenantId,
+    entityType: AUDIT_ENTITY.TENANT,
+    householdId: parsed.householdId,
+    metadata: {
+      email: normalizedEmail,
+      hasNotes: Boolean(parsed.notes),
+      tenancyEndDate: parsed.tenancyEndDate || null,
+      tenancyStartDate: parsed.tenancyStartDate,
+    },
+    targetLabel: parsed.displayName,
+  })
 
-  revalidatePath("/dashboard")
+  revalidateAdmin()
 }
 
 export const regenerateTenantPasswordAction = async (formData: FormData) => {
@@ -382,8 +435,20 @@ export const regenerateTenantPasswordAction = async (formData: FormData) => {
     .update(tenant)
     .set({ userId, updatedAt: new Date() })
     .where(eq(tenant.id, existingTenant.id))
+  await recordAuditLog({
+    action: AUDIT_ACTION.TENANT_PASSWORD_RESET,
+    actorEmail: session.user.email,
+    actorUserId: session.user.id,
+    entityId: existingTenant.id,
+    entityType: AUDIT_ENTITY.TENANT,
+    householdId: existingTenant.householdId,
+    metadata: {
+      email: normalizeEmail(existingTenant.email),
+    },
+    targetLabel: existingTenant.displayName,
+  })
 
-  revalidatePath("/dashboard")
+  revalidateAdmin()
 }
 
 export const deleteTenantAction = async (formData: FormData) => {
@@ -417,8 +482,21 @@ export const deleteTenantAction = async (formData: FormData) => {
   }
 
   await db.delete(tenant).where(eq(tenant.id, parsed.tenantId))
+  await recordAuditLog({
+    action: AUDIT_ACTION.TENANT_DELETED,
+    actorEmail: session.user.email,
+    actorUserId: session.user.id,
+    entityId: existingTenant.id,
+    entityType: AUDIT_ENTITY.TENANT,
+    householdId: existingTenant.householdId,
+    metadata: {
+      email: normalizeEmail(existingTenant.email),
+      hadLinkedUser: Boolean(existingTenant.userId),
+    },
+    targetLabel: existingTenant.displayName,
+  })
 
-  revalidatePath("/dashboard")
+  revalidateAdmin()
 }
 
 export const createAbsenceAction = async (formData: FormData) => {
@@ -429,17 +507,42 @@ export const createAbsenceAction = async (formData: FormData) => {
     tenantId: getString(formData, "tenantId"),
   })
   const session = await assertWritableAbsenceTenant(parsed.tenantId)
+  const [targetTenant] = await db
+    .select()
+    .from(tenant)
+    .where(eq(tenant.id, parsed.tenantId))
+    .limit(1)
+
+  if (!targetTenant) {
+    throw new Error("Tenant not found.")
+  }
+  const absenceId = createId()
 
   await db.insert(absenceRange).values({
     createdByUserId: session.user.id,
     endDate: parsed.endDate,
-    id: createId(),
+    id: absenceId,
     reason: parsed.reason,
     startDate: parsed.startDate,
     tenantId: parsed.tenantId,
   })
+  await recordAuditLog({
+    action: AUDIT_ACTION.ABSENCE_CREATED,
+    actorEmail: session.user.email,
+    actorUserId: session.user.id,
+    entityId: absenceId,
+    entityType: AUDIT_ENTITY.ABSENCE,
+    householdId: targetTenant.householdId,
+    metadata: {
+      endDate: parsed.endDate,
+      reason: parsed.reason || null,
+      startDate: parsed.startDate,
+      tenantId: parsed.tenantId,
+    },
+    targetLabel: targetTenant.displayName,
+  })
 
-  revalidatePath("/dashboard")
+  revalidateAway()
 }
 
 export const updateAbsenceAction = async (formData: FormData) => {
@@ -458,7 +561,17 @@ export const updateAbsenceAction = async (formData: FormData) => {
     throw new Error("Away range not found.")
   }
 
-  await assertWritableAbsenceTenant(existingAbsence.tenantId)
+  const session = await assertWritableAbsenceTenant(existingAbsence.tenantId)
+  const [targetTenant] = await db
+    .select()
+    .from(tenant)
+    .where(eq(tenant.id, existingAbsence.tenantId))
+    .limit(1)
+
+  if (!targetTenant) {
+    throw new Error("Tenant not found.")
+  }
+
   await db
     .update(absenceRange)
     .set({
@@ -467,8 +580,24 @@ export const updateAbsenceAction = async (formData: FormData) => {
       updatedAt: new Date(),
     })
     .where(eq(absenceRange.id, parsed.absenceId))
+  await recordAuditLog({
+    action: AUDIT_ACTION.ABSENCE_UPDATED,
+    actorEmail: session.user.email,
+    actorUserId: session.user.id,
+    entityId: existingAbsence.id,
+    entityType: AUDIT_ENTITY.ABSENCE,
+    householdId: targetTenant.householdId,
+    metadata: {
+      endDate: parsed.endDate,
+      previousEndDate: existingAbsence.endDate,
+      previousStartDate: existingAbsence.startDate,
+      startDate: parsed.startDate,
+      tenantId: existingAbsence.tenantId,
+    },
+    targetLabel: targetTenant.displayName,
+  })
 
-  revalidatePath("/dashboard")
+  revalidateAway()
 }
 
 export const deleteAbsenceAction = async (formData: FormData) => {
@@ -485,14 +614,38 @@ export const deleteAbsenceAction = async (formData: FormData) => {
     throw new Error("Away range not found.")
   }
 
-  await assertWritableAbsenceTenant(existingAbsence.tenantId)
-  await db.delete(absenceRange).where(eq(absenceRange.id, parsed.absenceId))
+  const session = await assertWritableAbsenceTenant(existingAbsence.tenantId)
+  const [targetTenant] = await db
+    .select()
+    .from(tenant)
+    .where(eq(tenant.id, existingAbsence.tenantId))
+    .limit(1)
 
-  revalidatePath("/dashboard")
+  if (!targetTenant) {
+    throw new Error("Tenant not found.")
+  }
+
+  await db.delete(absenceRange).where(eq(absenceRange.id, parsed.absenceId))
+  await recordAuditLog({
+    action: AUDIT_ACTION.ABSENCE_DELETED,
+    actorEmail: session.user.email,
+    actorUserId: session.user.id,
+    entityId: existingAbsence.id,
+    entityType: AUDIT_ENTITY.ABSENCE,
+    householdId: targetTenant.householdId,
+    metadata: {
+      endDate: existingAbsence.endDate,
+      startDate: existingAbsence.startDate,
+      tenantId: existingAbsence.tenantId,
+    },
+    targetLabel: targetTenant.displayName,
+  })
+
+  revalidateAway()
 }
 
 export const createBillingCycleAction = async (formData: FormData) => {
-  await requireRole([USER_ROLE.ADMIN])
+  const session = await requireRole([USER_ROLE.ADMIN])
   const parsed = createBillingCycleSchema.parse({
     endDate: getString(formData, "endDate"),
     householdId: getString(formData, "householdId"),
@@ -500,21 +653,41 @@ export const createBillingCycleAction = async (formData: FormData) => {
     notes: getString(formData, "notes"),
     startDate: getString(formData, "startDate"),
     totalAmount: getString(formData, "totalAmount"),
+    utilityType: getString(formData, "utilityType") || UTILITY_TYPE.ELECTRICITY,
     utilityProvider: getString(formData, "utilityProvider") || "SEB",
   })
+  const billingCycleId = createId()
+  const totalAmountCents = parseAmountCents(parsed.totalAmount)
 
   await db.insert(billingCycle).values({
     endDate: parsed.endDate,
     householdId: parsed.householdId,
-    id: createId(),
+    id: billingCycleId,
     name: parsed.name,
     notes: parsed.notes,
     startDate: parsed.startDate,
-    totalAmountCents: parseAmountCents(parsed.totalAmount),
+    totalAmountCents,
+    utilityType: parsed.utilityType,
     utilityProvider: parsed.utilityProvider,
   })
+  await recordAuditLog({
+    action: AUDIT_ACTION.BILL_CREATED,
+    actorEmail: session.user.email,
+    actorUserId: session.user.id,
+    entityId: billingCycleId,
+    entityType: AUDIT_ENTITY.BILL,
+    householdId: parsed.householdId,
+    metadata: {
+      endDate: parsed.endDate,
+      startDate: parsed.startDate,
+      totalAmountCents,
+      utilityProvider: parsed.utilityProvider,
+      utilityType: parsed.utilityType,
+    },
+    targetLabel: parsed.name,
+  })
 
-  revalidatePath("/dashboard")
+  revalidateUtilities()
 }
 
 export const runAllocationAction = async (formData: FormData) => {
@@ -616,8 +789,23 @@ export const runAllocationAction = async (formData: FormData) => {
       status: PAYMENT_STATUS.UNPAID,
     })
   }
+  await recordAuditLog({
+    action: AUDIT_ACTION.ALLOCATION_RUN,
+    actorEmail: session.user.email,
+    actorUserId: session.user.id,
+    entityId: allocationRunId,
+    entityType: AUDIT_ENTITY.ALLOCATION,
+    householdId: cycle.householdId,
+    metadata: {
+      billingCycleId: cycle.id,
+      lineCount: allocation.lines.length,
+      totalAmountCents: allocation.totalAmountCents,
+      totalPresentDays: allocation.totalPresentDays,
+    },
+    targetLabel: cycle.name,
+  })
 
-  revalidatePath("/dashboard")
+  revalidateUtilities()
 }
 
 export const uploadBillAction = async (formData: FormData) => {
@@ -626,6 +814,15 @@ export const uploadBillAction = async (formData: FormData) => {
     billingCycleId: getString(formData, "billingCycleId"),
   })
   const fileValue = formData.get("billFile")
+  const [cycle] = await db
+    .select()
+    .from(billingCycle)
+    .where(eq(billingCycle.id, parsed.billingCycleId))
+    .limit(1)
+
+  if (!cycle) {
+    throw new Error("Billing cycle not found.")
+  }
 
   if (!hasBlobConfig) {
     throw new Error("Vercel Blob is not configured.")
@@ -639,39 +836,112 @@ export const uploadBillAction = async (formData: FormData) => {
     access: "public",
     addRandomSuffix: true,
   })
+  const uploadId = createId()
 
   await db.insert(billUpload).values({
     billingCycleId: parsed.billingCycleId,
     contentType: fileValue.type || null,
     fileName: fileValue.name,
     fileUrl: blob.url,
-    id: createId(),
+    id: uploadId,
     sizeBytes: fileValue.size,
     uploadedByUserId: session.user.id,
   })
+  await recordAuditLog({
+    action: AUDIT_ACTION.BILL_UPLOADED,
+    actorEmail: session.user.email,
+    actorUserId: session.user.id,
+    entityId: uploadId,
+    entityType: AUDIT_ENTITY.BILL,
+    householdId: cycle.householdId,
+    metadata: {
+      billingCycleId: cycle.id,
+      contentType: fileValue.type || null,
+      fileName: fileValue.name,
+      sizeBytes: fileValue.size,
+    },
+    targetLabel: cycle.name,
+  })
 
-  revalidatePath("/dashboard")
+  revalidateUtilities()
 }
 
 export const markPaymentAction = async (formData: FormData) => {
-  await requireRole([USER_ROLE.ADMIN])
+  const session = await requireRole([USER_ROLE.ADMIN])
   const parsed = markPaymentSchema.parse({
     amountPaid: getString(formData, "amountPaid"),
     notes: getString(formData, "notes"),
     paymentId: getString(formData, "paymentId"),
     status: getString(formData, "status"),
   })
+  const [existingPayment] = await db
+    .select()
+    .from(payment)
+    .where(eq(payment.id, parsed.paymentId))
+    .limit(1)
+
+  if (!existingPayment) {
+    throw new Error("Payment not found.")
+  }
+
+  const [line] = await db
+    .select()
+    .from(allocationLine)
+    .where(eq(allocationLine.id, existingPayment.allocationLineId))
+    .limit(1)
+
+  if (!line) {
+    throw new Error("Allocation line not found.")
+  }
+
+  const [run] = await db
+    .select()
+    .from(allocationRun)
+    .where(eq(allocationRun.id, line.allocationRunId))
+    .limit(1)
+
+  if (!run) {
+    throw new Error("Allocation run not found.")
+  }
+
+  const [cycle] = await db
+    .select()
+    .from(billingCycle)
+    .where(eq(billingCycle.id, run.billingCycleId))
+    .limit(1)
+
+  if (!cycle) {
+    throw new Error("Billing cycle not found.")
+  }
+  const amountPaidCents = parseAmountCents(parsed.amountPaid)
 
   await db
     .update(payment)
     .set({
-      amountPaidCents: parseAmountCents(parsed.amountPaid),
+      amountPaidCents,
       notes: parsed.notes,
       paidAt: parsed.status === PAYMENT_STATUS.PAID ? new Date() : null,
       status: parsed.status,
       updatedAt: new Date(),
     })
     .where(eq(payment.id, parsed.paymentId))
+  await recordAuditLog({
+    action: AUDIT_ACTION.PAYMENT_UPDATED,
+    actorEmail: session.user.email,
+    actorUserId: session.user.id,
+    entityId: parsed.paymentId,
+    entityType: AUDIT_ENTITY.PAYMENT,
+    householdId: cycle.householdId,
+    metadata: {
+      amountPaidCents,
+      billingCycleId: cycle.id,
+      previousAmountPaidCents: existingPayment.amountPaidCents,
+      previousStatus: existingPayment.status,
+      status: parsed.status,
+      tenantId: line.tenantId,
+    },
+    targetLabel: cycle.name,
+  })
 
-  revalidatePath("/dashboard")
+  revalidateUtilities()
 }

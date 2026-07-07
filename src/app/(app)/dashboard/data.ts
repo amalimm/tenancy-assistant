@@ -1,10 +1,15 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm"
+import { and, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm"
 
 import { db } from "@db/client"
 import {
   absenceRange,
+  auditLog,
   allocationLine,
   allocationRun,
+  AUDIT_ACTION_VALUES,
+  AUDIT_ENTITY_VALUES,
+  type AuditAction,
+  type AuditEntity,
   billUpload,
   billingCycle,
   household,
@@ -13,6 +18,7 @@ import {
   tenancyPeriod,
   user,
   USER_ROLE,
+  type UtilityType,
   type UserRole,
 } from "@db/schema"
 
@@ -60,6 +66,7 @@ export interface DashboardBillingCycle {
   notes: string | null
   startDate: string
   totalAmountCents: number
+  utilityType: UtilityType
   utilityProvider: string
   uploads: DashboardBillUpload[]
 }
@@ -104,6 +111,25 @@ export interface DashboardData {
   user: DashboardUser
 }
 
+export interface DashboardAuditLog {
+  action: AuditAction
+  actorEmail: string
+  createdAt: Date
+  entityId: string | null
+  entityType: AuditEntity
+  id: string
+  metadata: Record<string, unknown> | null
+  targetLabel: string | null
+}
+
+export interface AuditLogFilters {
+  action?: AuditAction
+  actorEmail?: string
+  dateFrom?: string
+  dateTo?: string
+  entityType?: AuditEntity
+}
+
 export interface SessionUserInput {
   email: string
   id: string
@@ -120,6 +146,36 @@ const createEmptyDashboardCollections = () => ({
 })
 
 const toLowerEmail = (email: string) => email.trim().toLowerCase()
+
+export const toAuditActionFilter = (value: string) =>
+  AUDIT_ACTION_VALUES.includes(value as AuditAction)
+    ? (value as AuditAction)
+    : undefined
+
+export const toAuditEntityFilter = (value: string) =>
+  AUDIT_ENTITY_VALUES.includes(value as AuditEntity)
+    ? (value as AuditEntity)
+    : undefined
+
+const parseAuditMetadata = (metadata: string | null) => {
+  if (!metadata) {
+    return null
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(metadata)
+
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>)
+      : null
+  } catch {
+    return null
+  }
+}
+
+const toStartOfDay = (dateValue: string) => new Date(`${dateValue}T00:00:00`)
+
+const toEndOfDay = (dateValue: string) => new Date(`${dateValue}T23:59:59`)
 
 const linkTenantRecordForUser = async (input: SessionUserInput) => {
   const normalizedEmail = toLowerEmail(input.email)
@@ -405,6 +461,7 @@ export const getDashboardData = async (
       startDate: cycle.startDate,
       totalAmountCents: cycle.totalAmountCents,
       uploads: uploadsByCycleId.get(cycle.id) ?? [],
+      utilityType: cycle.utilityType,
       utilityProvider: cycle.utilityProvider,
     })),
     currentTenantId,
@@ -421,4 +478,49 @@ export const getDashboardData = async (
       role: currentUser.role,
     },
   }
+}
+
+export const getAuditLogData = async (
+  householdId: string,
+  filters: AuditLogFilters,
+): Promise<DashboardAuditLog[]> => {
+  const conditions = [eq(auditLog.householdId, householdId)]
+
+  if (filters.action) {
+    conditions.push(eq(auditLog.action, filters.action))
+  }
+
+  if (filters.entityType) {
+    conditions.push(eq(auditLog.entityType, filters.entityType))
+  }
+
+  if (filters.actorEmail) {
+    conditions.push(eq(auditLog.actorEmail, toLowerEmail(filters.actorEmail)))
+  }
+
+  if (filters.dateFrom) {
+    conditions.push(gte(auditLog.createdAt, toStartOfDay(filters.dateFrom)))
+  }
+
+  if (filters.dateTo) {
+    conditions.push(lte(auditLog.createdAt, toEndOfDay(filters.dateTo)))
+  }
+
+  const rows = await db
+    .select()
+    .from(auditLog)
+    .where(and(...conditions))
+    .orderBy(desc(auditLog.createdAt))
+    .limit(100)
+
+  return rows.map<DashboardAuditLog>((row) => ({
+    action: row.action,
+    actorEmail: row.actorEmail,
+    createdAt: row.createdAt,
+    entityId: row.entityId,
+    entityType: row.entityType,
+    id: row.id,
+    metadata: parseAuditMetadata(row.metadata),
+    targetLabel: row.targetLabel,
+  }))
 }
