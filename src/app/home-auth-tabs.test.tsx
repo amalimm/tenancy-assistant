@@ -9,7 +9,8 @@ describe("HomeAuthTabs", () => {
 
     expect(screen.getByRole("tab", { name: "Tenant" })).toBeInTheDocument()
     expect(screen.getByRole("tab", { name: "Admin" })).toBeInTheDocument()
-    expect(screen.getByRole("tabpanel")).toHaveTextContent("Tenant login")
+    expect(screen.getByLabelText("Email")).toBeInTheDocument()
+    expect(screen.getByLabelText("Password")).toBeInTheDocument()
   })
 
   it("presents Google admin sign-in with the provider label", () => {
@@ -18,5 +19,15 @@ describe("HomeAuthTabs", () => {
     expect(
       screen.getByRole("button", { name: /sign in with google/i }),
     ).toBeInTheDocument()
+  })
+
+  it("keeps a stable height without redundant admin copy", () => {
+    render(<HomeAuthTabs defaultValue="admin" hasGoogleOAuthConfig />)
+
+    expect(screen.getByRole("tabpanel")).toHaveClass("min-h-[18rem]")
+    expect(screen.queryByText("Admin access")).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/registered as a household admin/i),
+    ).not.toBeInTheDocument()
   })
 })

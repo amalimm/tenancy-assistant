@@ -9,7 +9,15 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { authClient } from "@features/auth/auth-client"
 
-export function TenantSignInForm({ className }: { className?: string }) {
+export interface TenantSignInFormProps {
+  className?: string
+  hideIntro?: boolean
+}
+
+export function TenantSignInForm({
+  className,
+  hideIntro = false,
+}: TenantSignInFormProps) {
   const [errorMessage, setErrorMessage] = useState("")
   const [isPending, setIsPending] = useState(false)
 
@@ -45,12 +53,14 @@ export function TenantSignInForm({ className }: { className?: string }) {
 
   return (
     <form className={cn("grid gap-4", className)} onSubmit={handleSubmit}>
-      <div>
-        <h2 className="text-base font-semibold">Tenant login</h2>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          Use the email and temporary password from your admin.
-        </p>
-      </div>
+      {hideIntro ? null : (
+        <div>
+          <h2 className="text-base font-semibold">Tenant login</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            Use the email and temporary password from your admin.
+          </p>
+        </div>
+      )}
       <div className="grid gap-2">
         <Label htmlFor="tenantEmail">Email</Label>
         <Input
