@@ -106,6 +106,10 @@ const runAllocationSchema = z.object({
   billingCycleId: z.string().min(1),
 })
 
+const deleteBillingCycleSchema = z.object({
+  billingCycleId: z.string().min(1),
+})
+
 const uploadBillSchema = z.object({
   billingCycleId: z.string().min(1),
 })
@@ -852,6 +856,77 @@ export const runAllocationAction = async (formData: FormData) => {
       lineCount: allocation.lines.length,
       totalAmountCents: allocation.totalAmountCents,
       totalPresentDays: allocation.totalPresentDays,
+    },
+    targetLabel: cycle.name,
+  })
+
+  revalidateUtilities()
+}
+
+export const deleteBillingCycleAction = async (formData: FormData) => {
+  const session = await requireRole([USER_ROLE.ADMIN])
+  requireAbility(session.user.role, APP_ACTION.DELETE, APP_SUBJECT.BILL)
+  const parsed = deleteBillingCycleSchema.parse({
+    billingCycleId: getString(formData, "billingCycleId"),
+  })
+  const [cycle] = await db
+    .select()
+    .from(billingCycle)
+    .where(eq(billingCycle.id, parsed.billingCycleId))
+    .limit(1)
+
+  if (!cycle) {
+    throw new Error("Billing cycle not found.")
+  }
+
+  if (
+    session.user.activeHouseholdId &&
+    cycle.householdId !== session.user.activeHouseholdId
+  ) {
+    throw new Error("Bill does not belong to the active household.")
+  }
+
+  const runs = await db
+    .select({ id: allocationRun.id })
+    .from(allocationRun)
+    .where(eq(allocationRun.billingCycleId, cycle.id))
+  const runIds = runs.map((run) => run.id)
+  const lines =
+    runIds.length > 0
+      ? await db
+          .select({ id: allocationLine.id })
+          .from(allocationLine)
+          .where(inArray(allocationLine.allocationRunId, runIds))
+      : []
+  const lineIds = lines.map((line) => line.id)
+
+  if (lineIds.length > 0) {
+    await db.delete(payment).where(inArray(payment.allocationLineId, lineIds))
+  }
+
+  if (runIds.length > 0) {
+    await db
+      .delete(allocationLine)
+      .where(inArray(allocationLine.allocationRunId, runIds))
+    await db.delete(allocationRun).where(inArray(allocationRun.id, runIds))
+  }
+
+  await db.delete(billUpload).where(eq(billUpload.billingCycleId, cycle.id))
+  await db.delete(billingCycle).where(eq(billingCycle.id, parsed.billingCycleId))
+  await recordAuditLog({
+    action: AUDIT_ACTION.BILL_DELETED,
+    actorEmail: session.user.email,
+    actorUserId: session.user.id,
+    entityId: cycle.id,
+    entityType: AUDIT_ENTITY.BILL,
+    householdId: cycle.householdId,
+    metadata: {
+      allocationRunCount: runIds.length,
+      endDate: cycle.endDate,
+      paymentCount: lineIds.length,
+      startDate: cycle.startDate,
+      totalAmountCents: cycle.totalAmountCents,
+      utilityType: cycle.utilityType,
     },
     targetLabel: cycle.name,
   })

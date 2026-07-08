@@ -95,6 +95,7 @@ import {
   createHouseholdAction,
   createTenantAction,
   deleteAbsenceAction,
+  deleteBillingCycleAction,
   deleteTenantAction,
   markPaymentAction,
   regenerateTenantPasswordAction,
@@ -141,6 +142,7 @@ const AUDIT_ACTION_LABEL = {
   [AUDIT_ACTION.ABSENCE_UPDATED]: "Calendar entry updated",
   [AUDIT_ACTION.ALLOCATION_RUN]: "Allocation run",
   [AUDIT_ACTION.BILL_CREATED]: "Utility bill created",
+  [AUDIT_ACTION.BILL_DELETED]: "Utility bill deleted",
   [AUDIT_ACTION.BILL_UPLOADED]: "Bill uploaded",
   [AUDIT_ACTION.HOUSEHOLD_CREATED]: "Household created",
   [AUDIT_ACTION.PAYMENT_UPDATED]: "Payment updated",
@@ -1317,17 +1319,6 @@ export function DashboardUtilities({
             />
           </div>
 
-          {!hasBlobConfig && isAdmin ? (
-            <div className="mt-4 flex items-start gap-3 rounded-lg border border-dashed bg-muted/20 p-3">
-              <Upload className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Uploads are off</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Configure bill storage to attach files.
-                </p>
-              </div>
-            </div>
-          ) : null}
         </section>
 
         {data.billingCycles.length === 0 ? (
@@ -1362,9 +1353,46 @@ export function DashboardUtilities({
                   {formatUtilityType(cycle.utilityType)}
                 </p>
               </div>
-              <Badge className="w-fit">
-                {formatCurrency(cycle.totalAmountCents)}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge className="w-fit">
+                  {formatCurrency(cycle.totalAmountCents)}
+                </Badge>
+                {isAdmin ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        aria-label={`Delete ${cycle.name}`}
+                        className="text-destructive hover:text-destructive focus-visible:border-destructive/40 focus-visible:ring-destructive/20"
+                        size="icon-sm"
+                        variant="outline"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this bill?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This removes its splits, payments, and uploads.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <form action={deleteBillingCycleAction}>
+                          <input
+                            name="billingCycleId"
+                            type="hidden"
+                            value={cycle.id}
+                          />
+                          <Button type="submit" variant="destructive">
+                            Delete bill
+                          </Button>
+                        </form>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : null}
+              </div>
             </div>
 
             <div className="grid gap-4 p-5">
@@ -1380,30 +1408,26 @@ export function DashboardUtilities({
                       Calculate shares
                     </PendingSubmitButton>
                   </form>
-                  <form
-                    action={uploadBillAction}
-                    className="flex flex-wrap items-center gap-2"
-                  >
-                    <input
-                      name="billingCycleId"
-                      type="hidden"
-                      value={cycle.id}
-                    />
-                    <Input
-                      className="max-w-64"
-                      disabled={!hasBlobConfig}
-                      name="billFile"
-                      type="file"
-                    />
-                    <PendingSubmitButton
-                      disabled={!hasBlobConfig}
-                      pendingLabel="Attaching..."
-                      size="sm"
+                  {hasBlobConfig ? (
+                    <form
+                      action={uploadBillAction}
+                      className="flex flex-wrap items-center gap-2"
                     >
-                      <Upload />
-                      Attach bill
-                    </PendingSubmitButton>
-                  </form>
+                      <input
+                        name="billingCycleId"
+                        type="hidden"
+                        value={cycle.id}
+                      />
+                      <Input className="max-w-64" name="billFile" type="file" />
+                      <PendingSubmitButton
+                        pendingLabel="Attaching..."
+                        size="sm"
+                      >
+                        <Upload />
+                        Attach bill
+                      </PendingSubmitButton>
+                    </form>
+                  ) : null}
                 </div>
               ) : null}
 
