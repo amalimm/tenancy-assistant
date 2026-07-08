@@ -61,7 +61,12 @@ export function CreateUtilityBillForm({
       <input name="householdId" type="hidden" value={householdId} />
       <div className="grid gap-2">
         <Label htmlFor="billName">Bill name (optional)</Label>
-        <Input id="billName" name="name" placeholder="Auto" />
+        <Input
+          autoComplete="off"
+          id="billName"
+          name="name"
+          placeholder="Auto"
+        />
       </div>
       <div className="grid gap-2">
         <Label htmlFor="utilityType">Utility type</Label>
