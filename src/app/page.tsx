@@ -59,7 +59,7 @@ export default async function HomePage() {
 
           <section
             aria-label={session ? "Continue to dashboard" : "Sign in"}
-            className="w-full rounded-xl border bg-card p-5 sm:p-6"
+            className="mx-auto w-full max-w-md rounded-xl border bg-card p-5 sm:p-6 lg:mx-0"
           >
             {session ? (
               <div className="grid gap-4">

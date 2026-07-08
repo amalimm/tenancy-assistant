@@ -24,7 +24,7 @@ describe("HomeAuthTabs", () => {
   it("keeps a compact stable height without redundant admin copy", () => {
     render(<HomeAuthTabs defaultValue="admin" hasGoogleOAuthConfig />)
 
-    expect(screen.getByRole("tabpanel")).toHaveClass("min-h-[13rem]")
+    expect(screen.getByRole("tabpanel")).toHaveClass("min-h-[12rem]")
     expect(screen.queryByText("Admin access")).not.toBeInTheDocument()
     expect(
       screen.queryByText(/registered as a household admin/i),

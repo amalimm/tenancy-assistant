@@ -65,7 +65,7 @@ export function TenantSignInForm({
         <Label htmlFor="tenantEmail">Email</Label>
         <Input
           autoComplete="email"
-          className="h-10 bg-background px-3"
+          className="h-9 bg-background px-3"
           id="tenantEmail"
           name="tenantEmail"
           required
@@ -76,7 +76,7 @@ export function TenantSignInForm({
         <Label htmlFor="tenantPassword">Password</Label>
         <Input
           autoComplete="current-password"
-          className="h-10 bg-background px-3"
+          className="h-9 bg-background px-3"
           id="tenantPassword"
           name="tenantPassword"
           required

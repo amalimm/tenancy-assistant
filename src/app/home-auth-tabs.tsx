@@ -17,8 +17,8 @@ export function HomeAuthTabs({
   hasGoogleOAuthConfig,
 }: HomeAuthTabsProps) {
   return (
-    <Tabs className="gap-5" defaultValue={defaultValue}>
-      <TabsList className="grid h-10 w-full grid-cols-2 rounded-lg bg-muted p-1">
+    <Tabs className="gap-4" defaultValue={defaultValue}>
+      <TabsList className="grid h-9 w-full grid-cols-2 rounded-lg bg-muted p-1">
         <TabsTrigger className="h-full rounded-md" value="tenant">
           Tenant
         </TabsTrigger>
@@ -27,20 +27,20 @@ export function HomeAuthTabs({
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent className="mt-0 min-h-[13rem]" value="tenant">
-        <TenantSignInForm hideIntro />
+      <TabsContent className="mt-0 min-h-[12rem]" value="tenant">
+        <TenantSignInForm className="gap-3" hideIntro />
       </TabsContent>
 
-      <TabsContent className="mt-0 min-h-[13rem]" value="admin">
-        <div className="grid min-h-[13rem] content-start gap-3">
+      <TabsContent className="mt-0 min-h-[12rem]" value="admin">
+        <div className="grid min-h-[12rem] content-start gap-3">
           <SignInButton
-            className="h-11 w-full justify-center rounded-lg border bg-background text-sm font-medium shadow-sm hover:bg-muted"
+            className="h-10 w-full justify-center rounded-lg border bg-background text-sm font-medium shadow-sm hover:bg-muted"
             disabled={!hasGoogleOAuthConfig}
             mode="sign-in"
             variant="outline"
           />
           <p className="text-xs leading-5 text-muted-foreground">
-            Admins manage tenants, bills, and payments.
+            Manage tenants, bills, allocations, and payments.
           </p>
           {!hasGoogleOAuthConfig ? (
             <p className="text-xs leading-5 text-muted-foreground">
