@@ -1441,7 +1441,7 @@ export function DashboardUtilities({
                     {cycle.uploads.map((upload) => (
                       <a
                         className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                        href={upload.fileUrl}
+                        href={upload.downloadHref}
                         key={upload.id}
                         rel="noreferrer"
                         target="_blank"

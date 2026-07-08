@@ -6,7 +6,7 @@ import { headers } from "next/headers"
 import { put } from "@vercel/blob"
 import { z } from "zod"
 
-import { env, hasBlobConfig } from "@config/env"
+import { env } from "@config/env"
 import { db } from "@db/client"
 import {
   absenceRange,
@@ -950,7 +950,16 @@ export const uploadBillAction = async (formData: FormData) => {
     throw new Error("Billing cycle not found.")
   }
 
-  if (!hasBlobConfig) {
+  if (
+    session.user.activeHouseholdId &&
+    cycle.householdId !== session.user.activeHouseholdId
+  ) {
+    throw new Error("Bill does not belong to the active household.")
+  }
+
+  const blobReadWriteToken = env.blobReadWriteToken
+
+  if (!blobReadWriteToken) {
     throw new Error("Vercel Blob is not configured.")
   }
 
@@ -958,17 +967,22 @@ export const uploadBillAction = async (formData: FormData) => {
     throw new Error("Choose a bill file to upload.")
   }
 
-  const blob = await put(`bills/${parsed.billingCycleId}/${fileValue.name}`, fileValue, {
-    access: "public",
-    addRandomSuffix: true,
-  })
+  const blob = await put(
+    `bills/${parsed.billingCycleId}/${fileValue.name}`,
+    fileValue,
+    {
+      access: "private",
+      addRandomSuffix: true,
+      token: blobReadWriteToken,
+    },
+  )
   const uploadId = createId()
 
   await db.insert(billUpload).values({
     billingCycleId: parsed.billingCycleId,
     contentType: fileValue.type || null,
     fileName: fileValue.name,
-    fileUrl: blob.url,
+    fileUrl: blob.pathname,
     id: uploadId,
     sizeBytes: fileValue.size,
     uploadedByUserId: session.user.id,
