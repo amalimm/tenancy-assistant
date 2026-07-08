@@ -2,10 +2,10 @@
 
 import { useState } from "react"
 
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { PendingSubmitButton } from "@shared/ui/pending-submit-button"
 
 import {
   CALENDAR_COLOR_OPTIONS,
@@ -102,14 +102,14 @@ export function CalendarColorForm({
       <p className="text-sm leading-6 text-muted-foreground">
         Used for your calendar entries.
       </p>
-      <Button
+      <PendingSubmitButton
         className="w-fit"
         disabled={!isValidHexValue}
+        pendingLabel="Saving..."
         size="sm"
-        type="submit"
       >
         Save color
-      </Button>
+      </PendingSubmitButton>
     </form>
   )
 }

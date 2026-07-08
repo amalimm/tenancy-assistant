@@ -88,6 +88,7 @@ import {
   toLocalDateValue,
 } from "@shared/lib/format"
 import { DateRangeFields } from "@shared/ui/date-range-fields"
+import { PendingSubmitButton } from "@shared/ui/pending-submit-button"
 
 import {
   createAbsenceAction,
@@ -499,10 +500,10 @@ export function HouseholdSetupCard({ isAdmin }: { isAdmin: boolean }) {
                 <Label htmlFor="address">Address</Label>
                 <Textarea id="address" name="address" placeholder="Optional" />
               </div>
-              <Button type="submit">
+              <PendingSubmitButton pendingLabel="Creating...">
                 <Home />
                 Create household
-              </Button>
+              </PendingSubmitButton>
             </form>
           </CardContent>
         ) : null}
@@ -1084,7 +1085,9 @@ function AuditLogPanel({
             type="date"
           />
           <div className="flex gap-2">
-            <Button type="submit">Filter</Button>
+            <PendingSubmitButton pendingLabel="Filtering...">
+              Filter
+            </PendingSubmitButton>
             <Button asChild variant="outline">
               <Link href={"/dashboard/admin?tab=audit" as Route}>Reset</Link>
             </Button>
@@ -1216,10 +1219,10 @@ export function DashboardAdmin({
                     <Label htmlFor="notes">Notes</Label>
                     <Textarea id="notes" name="notes" />
                   </div>
-                  <Button type="submit">
+                  <PendingSubmitButton pendingLabel="Adding...">
                     <UserPlus />
                     Add tenant
-                  </Button>
+                  </PendingSubmitButton>
                 </form>
               </CardContent>
             </Card>
@@ -1373,14 +1376,13 @@ export function DashboardUtilities({
                       type="hidden"
                       value={cycle.id}
                     />
-                    <Button size="sm" type="submit">
+                    <PendingSubmitButton pendingLabel="Calculating..." size="sm">
                       Calculate shares
-                    </Button>
+                    </PendingSubmitButton>
                   </form>
                   <form
                     action={uploadBillAction}
                     className="flex flex-wrap items-center gap-2"
-                    encType="multipart/form-data"
                   >
                     <input
                       name="billingCycleId"
@@ -1393,10 +1395,14 @@ export function DashboardUtilities({
                       name="billFile"
                       type="file"
                     />
-                    <Button disabled={!hasBlobConfig} size="sm" type="submit">
+                    <PendingSubmitButton
+                      disabled={!hasBlobConfig}
+                      pendingLabel="Attaching..."
+                      size="sm"
+                    >
                       <Upload />
                       Attach bill
-                    </Button>
+                    </PendingSubmitButton>
                   </form>
                 </div>
               ) : null}
@@ -1504,9 +1510,12 @@ export function DashboardUtilities({
                                       name="notes"
                                       placeholder="Note"
                                     />
-                                    <Button size="sm" type="submit">
+                                    <PendingSubmitButton
+                                      pendingLabel="Updating..."
+                                      size="sm"
+                                    >
                                       Update
-                                    </Button>
+                                    </PendingSubmitButton>
                                   </form>
                                 ) : (
                                   <Badge variant="outline">

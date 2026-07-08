@@ -35,16 +35,20 @@ export function CreateUtilityBillForm({
   householdId,
 }: CreateUtilityBillFormProps) {
   const [errorMessage, setErrorMessage] = useState("")
+  const [formKey, setFormKey] = useState(0)
   const [isPending, setIsPending] = useState(false)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const form = event.currentTarget
+
     setErrorMessage("")
     setIsPending(true)
 
     try {
-      await createBillingCycleAction(new FormData(event.currentTarget))
-      event.currentTarget.reset()
+      await createBillingCycleAction(new FormData(form))
+      form.reset()
+      setFormKey((value) => value + 1)
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Save failed.")
     } finally {
@@ -53,7 +57,7 @@ export function CreateUtilityBillForm({
   }
 
   return (
-    <form className="grid gap-4 p-5" onSubmit={handleSubmit}>
+    <form className="grid gap-4 p-5" key={formKey} onSubmit={handleSubmit}>
       <input name="householdId" type="hidden" value={householdId} />
       <div className="grid gap-2">
         <Label htmlFor="billName">Bill name (optional)</Label>
