@@ -1170,15 +1170,6 @@ export function DashboardAdmin({
 
   return (
     <div className="grid gap-4">
-      <section className="rounded-lg border bg-card p-5">
-        <Badge variant="secondary">Admin</Badge>
-        <h1 className="mt-3 text-2xl font-semibold">Admin hub</h1>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Manage tenants and review the operational audit trail for this
-          household.
-        </p>
-      </section>
-
       <Tabs defaultValue={defaultTab}>
         <TabsList>
           <TabsTrigger value={ADMIN_TAB.TENANTS}>Tenants</TabsTrigger>
