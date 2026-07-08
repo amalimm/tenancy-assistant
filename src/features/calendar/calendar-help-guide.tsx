@@ -1,20 +1,25 @@
-import { CalendarDays, Move, MousePointer2 } from "lucide-react"
+import { CalendarDays, MousePointer2, Pencil, Trash2 } from "lucide-react"
 
 const calendarHelpItems = [
   {
-    description: "Drag across dates.",
+    description: "Drag dates",
     icon: MousePointer2,
     title: "Select",
   },
   {
-    description: "Tenant and optional reason.",
+    description: "Tenant + reason",
     icon: CalendarDays,
     title: "Details",
   },
   {
-    description: "Drag to move. Click to delete.",
-    icon: Move,
-    title: "Edit",
+    description: "Drag to move",
+    icon: Pencil,
+    title: "Move",
+  },
+  {
+    description: "Click to delete",
+    icon: Trash2,
+    title: "Delete",
   },
 ] as const
 
@@ -22,39 +27,40 @@ export function CalendarHelpGuide() {
   return (
     <div className="group/help relative w-fit">
       <button
-        className="rounded-sm border-b border-dotted border-muted-foreground/70 pb-0.5 text-xs font-medium text-muted-foreground outline-none transition-colors hover:border-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="rounded-sm border-b border-dotted border-muted-foreground/60 pb-0.5 text-xs font-medium text-muted-foreground outline-none transition-colors hover:border-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
         type="button"
       >
         Guide
       </button>
       <div
-        className="pointer-events-none absolute right-0 top-full z-30 mt-3 hidden w-[min(20rem,calc(100vw-2rem))] rounded-lg border bg-popover p-3 text-left text-popover-foreground shadow-lg ring-1 ring-foreground/10 group-focus-within/help:block group-hover/help:block"
+        className="pointer-events-none absolute right-0 top-full z-30 mt-2 hidden w-[min(17rem,calc(100vw-2rem))] rounded-lg border bg-popover p-2.5 text-left text-popover-foreground shadow-[0_8px_24px_rgb(0_0_0/0.08)] ring-1 ring-foreground/5 group-focus-within/help:block group-hover/help:block"
         role="tooltip"
       >
-        <div className="flex items-start gap-2 border-b pb-3">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-secondary">
-            <CalendarDays className="size-4" />
+        <div className="flex items-center gap-2 border-b pb-2">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-secondary">
+            <CalendarDays className="size-3.5" />
           </div>
-          <div>
-            <p className="font-medium">Calendar</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              Return dates are excluded.
+          <div className="min-w-0">
+            <p className="text-sm font-semibold leading-5">Calendar</p>
+            <p className="text-xs leading-4 text-muted-foreground">
+              Return date excluded
             </p>
           </div>
         </div>
-        <div className="mt-3 grid gap-2">
+        <div className="mt-2 grid gap-1">
           {calendarHelpItems.map((item) => {
             const Icon = item.icon
 
             return (
-              <div className="flex gap-2" key={item.title}>
-                <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium leading-5">{item.title}</p>
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    {item.description}
-                  </p>
-                </div>
+              <div
+                className="grid grid-cols-[1rem_4.25rem_1fr] items-center gap-2 rounded-md px-1.5 py-1.5"
+                key={item.title}
+              >
+                <Icon className="size-3.5 text-muted-foreground" />
+                <p className="text-xs font-semibold leading-4">{item.title}</p>
+                <p className="truncate text-xs leading-4 text-muted-foreground">
+                  {item.description}
+                </p>
               </div>
             )
           })}
