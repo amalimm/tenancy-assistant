@@ -81,7 +81,7 @@ export function TenantSignInForm({ className }: { className?: string }) {
         disabled={isPending}
         type="submit"
       >
-        {isPending ? "Signing in..." : "Open dashboard"}
+        {isPending ? "Signing in..." : "Login"}
       </Button>
     </form>
   )
