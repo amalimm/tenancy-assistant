@@ -37,6 +37,14 @@ import {
   type AppSubject,
 } from "@features/auth/permissions"
 import { auth, requireRole, requireSession } from "@features/auth/auth-server"
+import { addLocalDays, formatLocalDate } from "@shared/lib/format"
+
+const UTILITY_TYPE_LABEL = {
+  [UTILITY_TYPE.ELECTRICITY]: "Electricity",
+  [UTILITY_TYPE.WATER]: "Water",
+  [UTILITY_TYPE.INTERNET]: "Internet",
+  [UTILITY_TYPE.OTHER]: "Other",
+} as const
 
 const dateRangeSchema = z
   .object({
@@ -87,7 +95,7 @@ const regenerateTenantPasswordSchema = z.object({
 
 const createBillingCycleSchema = dateRangeSchema.extend({
   householdId: z.string().min(1),
-  name: z.string().trim().min(1),
+  name: z.string().trim().optional(),
   notes: z.string().trim().optional(),
   totalAmount: z.string().trim().min(1),
   utilityType: z.enum(UTILITY_TYPE_VALUES).default(UTILITY_TYPE.ELECTRICITY),
@@ -128,6 +136,17 @@ const parseAmountCents = (value: string) => {
 
   return Math.round(amount * 100)
 }
+
+const formatDefaultBillName = ({
+  endDate,
+  startDate,
+  utilityType,
+}: {
+  endDate: string
+  startDate: string
+  utilityType: keyof typeof UTILITY_TYPE_LABEL
+}) =>
+  `${UTILITY_TYPE_LABEL[utilityType]} · ${formatLocalDate(startDate)} to ${formatLocalDate(addLocalDays(endDate, -1))}`
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase()
 
@@ -654,16 +673,22 @@ export const createBillingCycleAction = async (formData: FormData) => {
     startDate: getString(formData, "startDate"),
     totalAmount: getString(formData, "totalAmount"),
     utilityType: getString(formData, "utilityType") || UTILITY_TYPE.ELECTRICITY,
-    utilityProvider: getString(formData, "utilityProvider") || "SEB",
   })
   const billingCycleId = createId()
   const totalAmountCents = parseAmountCents(parsed.totalAmount)
+  const billName =
+    parsed.name ||
+    formatDefaultBillName({
+      endDate: parsed.endDate,
+      startDate: parsed.startDate,
+      utilityType: parsed.utilityType,
+    })
 
   await db.insert(billingCycle).values({
     endDate: parsed.endDate,
     householdId: parsed.householdId,
     id: billingCycleId,
-    name: parsed.name,
+    name: billName,
     notes: parsed.notes,
     startDate: parsed.startDate,
     totalAmountCents,
@@ -684,7 +709,7 @@ export const createBillingCycleAction = async (formData: FormData) => {
       utilityProvider: parsed.utilityProvider,
       utilityType: parsed.utilityType,
     },
-    targetLabel: parsed.name,
+    targetLabel: billName,
   })
 
   revalidateUtilities()

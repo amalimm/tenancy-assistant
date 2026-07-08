@@ -1282,11 +1282,11 @@ export function DashboardUtilities({
               value={data.household.id}
             />
             <div className="grid gap-2">
-              <Label htmlFor="billName">Bill name</Label>
+              <Label htmlFor="billName">Bill name (optional)</Label>
               <Input
                 id="billName"
                 name="name"
-                placeholder="January 2026 electricity"
+                placeholder="Auto"
               />
             </div>
             <div className="grid gap-2">
@@ -1321,14 +1321,6 @@ export function DashboardUtilities({
                 inputMode="decimal"
                 name="totalAmount"
                 placeholder="300.00"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="utilityProvider">Provider</Label>
-              <Input
-                defaultValue="SEB"
-                id="utilityProvider"
-                name="utilityProvider"
               />
             </div>
             <div className="grid gap-2">
@@ -1420,7 +1412,7 @@ export function DashboardUtilities({
                 <h2 className="font-semibold">{cycle.name}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {formatDateRange(cycle.startDate, cycle.endDate)} ·{" "}
-                  {formatUtilityType(cycle.utilityType)} · {cycle.utilityProvider}
+                  {formatUtilityType(cycle.utilityType)}
                 </p>
               </div>
               <Badge className="w-fit">
