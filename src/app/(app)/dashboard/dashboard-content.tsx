@@ -1314,10 +1314,13 @@ export function DashboardUtilities({
               </Select>
             </div>
             <DateRangeFields
+              calendarDensity="compact"
               endName="endDate"
               id="billPeriod"
               label="Bill period"
-              placeholder="Select bill dates"
+              numberOfMonths={2}
+              placeholder="Start Date - End Date"
+              requireCompleteRange
               startName="startDate"
             />
             <div className="grid gap-2">
