@@ -27,20 +27,23 @@ export function HomeAuthTabs({
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent className="mt-0 min-h-[18rem]" value="tenant">
+      <TabsContent className="mt-0 min-h-[13rem]" value="tenant">
         <TenantSignInForm hideIntro />
       </TabsContent>
 
-      <TabsContent className="mt-0 min-h-[18rem]" value="admin">
-        <div className="flex min-h-[18rem] flex-col justify-center">
+      <TabsContent className="mt-0 min-h-[13rem]" value="admin">
+        <div className="grid min-h-[13rem] content-start gap-3">
           <SignInButton
             className="h-11 w-full justify-center rounded-lg border bg-background text-sm font-medium shadow-sm hover:bg-muted"
             disabled={!hasGoogleOAuthConfig}
             mode="sign-in"
             variant="outline"
           />
+          <p className="text-xs leading-5 text-muted-foreground">
+            Admins manage tenants, bills, and payments.
+          </p>
           {!hasGoogleOAuthConfig ? (
-            <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            <p className="text-xs leading-5 text-muted-foreground">
               Google SSO is not configured.
             </p>
           ) : null}
