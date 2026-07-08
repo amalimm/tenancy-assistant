@@ -30,4 +30,15 @@ describe("HomeAuthTabs", () => {
       screen.queryByText(/registered as a household admin/i),
     ).not.toBeInTheDocument()
   })
+
+  it("centers the admin Google sign-in group", () => {
+    render(<HomeAuthTabs defaultValue="admin" hasGoogleOAuthConfig />)
+
+    const button = screen.getByRole("button", { name: /sign in with google/i })
+    const group = button.parentElement
+    const panelLayout = group?.parentElement
+
+    expect(panelLayout).toHaveClass("place-items-center")
+    expect(group).toHaveClass("max-w-xs", "justify-items-center", "text-center")
+  })
 })
