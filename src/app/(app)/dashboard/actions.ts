@@ -97,7 +97,7 @@ const createBillingCycleSchema = dateRangeSchema.extend({
   householdId: z.string().min(1),
   name: z.string().trim().optional(),
   notes: z.string().trim().optional(),
-  totalAmount: z.string().trim().min(1),
+  totalAmount: z.string().trim().min(1, "Enter total amount."),
   utilityType: z.enum(UTILITY_TYPE_VALUES).default(UTILITY_TYPE.ELECTRICITY),
   utilityProvider: z.string().trim().min(1).default("SEB"),
 })
@@ -147,6 +147,26 @@ const formatDefaultBillName = ({
   utilityType: keyof typeof UTILITY_TYPE_LABEL
 }) =>
   `${UTILITY_TYPE_LABEL[utilityType]} · ${formatLocalDate(startDate)} to ${formatLocalDate(addLocalDays(endDate, -1))}`
+
+const getZodErrorMessage = (error: z.ZodError) => {
+  const firstIssue = error.issues[0]
+
+  if (!firstIssue) {
+    return "Check the form and try again."
+  }
+
+  const fieldName = firstIssue.path[0]
+
+  if (fieldName === "startDate" || fieldName === "endDate") {
+    return "Select bill period."
+  }
+
+  if (typeof firstIssue.message === "string" && firstIssue.message) {
+    return firstIssue.message
+  }
+
+  return "Check the form and try again."
+}
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase()
 
@@ -665,7 +685,7 @@ export const deleteAbsenceAction = async (formData: FormData) => {
 
 export const createBillingCycleAction = async (formData: FormData) => {
   const session = await requireRole([USER_ROLE.ADMIN])
-  const parsed = createBillingCycleSchema.parse({
+  const parsedResult = createBillingCycleSchema.safeParse({
     endDate: getString(formData, "endDate"),
     householdId: getString(formData, "householdId"),
     name: getString(formData, "name"),
@@ -674,6 +694,12 @@ export const createBillingCycleAction = async (formData: FormData) => {
     totalAmount: getString(formData, "totalAmount"),
     utilityType: getString(formData, "utilityType") || UTILITY_TYPE.ELECTRICITY,
   })
+
+  if (!parsedResult.success) {
+    throw new Error(getZodErrorMessage(parsedResult.error))
+  }
+
+  const parsed = parsedResult.data
   const billingCycleId = createId()
   const totalAmountCents = parseAmountCents(parsed.totalAmount)
   const billName =

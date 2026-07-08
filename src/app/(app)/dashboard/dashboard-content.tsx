@@ -91,7 +91,6 @@ import { DateRangeFields } from "@shared/ui/date-range-fields"
 
 import {
   createAbsenceAction,
-  createBillingCycleAction,
   createHouseholdAction,
   createTenantAction,
   deleteAbsenceAction,
@@ -108,6 +107,7 @@ import {
   DashboardOccupancyChart,
   type DashboardOccupancyChartDatum,
 } from "./dashboard-charts"
+import { CreateUtilityBillForm } from "./create-utility-bill-form"
 import type {
   AuditLogFilters,
   DashboardAuditLog,
@@ -1275,63 +1275,7 @@ export function DashboardUtilities({
               Select the utility, period, and amount.
             </p>
           </div>
-          <form action={createBillingCycleAction} className="grid gap-4 p-5">
-            <input
-              name="householdId"
-              type="hidden"
-              value={data.household.id}
-            />
-            <div className="grid gap-2">
-              <Label htmlFor="billName">Bill name (optional)</Label>
-              <Input
-                id="billName"
-                name="name"
-                placeholder="Auto"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="utilityType">Utility type</Label>
-              <Select defaultValue={UTILITY_TYPE.ELECTRICITY} name="utilityType">
-                <SelectTrigger className="w-full" id="utilityType">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(UTILITY_TYPE_LABEL).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <DateRangeFields
-              calendarDensity="compact"
-              endName="endDate"
-              id="billPeriod"
-              label="Bill period"
-              numberOfMonths={2}
-              placeholder="Start Date - End Date"
-              requireCompleteRange
-              startName="startDate"
-            />
-            <div className="grid gap-2">
-              <Label htmlFor="totalAmount">Total amount</Label>
-              <Input
-                id="totalAmount"
-                inputMode="decimal"
-                name="totalAmount"
-                placeholder="300.00"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="billNotes">Notes</Label>
-              <Textarea id="billNotes" name="notes" />
-            </div>
-            <Button type="submit">
-              <ReceiptText />
-              Save bill
-            </Button>
-          </form>
+          <CreateUtilityBillForm householdId={data.household.id} />
         </div>
       ) : null}
 
