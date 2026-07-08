@@ -4,9 +4,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { hasGoogleOAuthConfig } from "@config/env"
 import { getSession } from "@features/auth/auth-server"
-import { SignInButton } from "@features/auth/sign-in-button"
-import { TenantSignInForm } from "@features/auth/tenant-sign-in-form"
 import { ThemeToggle } from "@shared/ui/theme-toggle"
+import { HomeAuthTabs } from "./home-auth-tabs"
 
 export default async function HomePage() {
   const session = await getSession()
@@ -35,7 +34,7 @@ export default async function HomePage() {
             {session ? (
               <Button asChild variant="outline">
                 <Link href="/dashboard">
-                  Dashboard
+                  Login
                   <ArrowRight />
                 </Link>
               </Button>
@@ -72,31 +71,13 @@ export default async function HomePage() {
                 </div>
                 <Button asChild className="h-10">
                   <Link href="/dashboard">
-                    Open dashboard
+                    Login
                     <ArrowRight />
                   </Link>
                 </Button>
               </div>
             ) : (
-              <div className="grid gap-5">
-                <TenantSignInForm />
-                <div className="grid gap-3 border-t pt-4">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Admin access
-                  </p>
-                  <SignInButton
-                    className="h-10 w-full"
-                    disabled={!hasGoogleOAuthConfig}
-                    mode="sign-in"
-                    variant="outline"
-                  />
-                  {!hasGoogleOAuthConfig ? (
-                    <p className="text-xs leading-5 text-muted-foreground">
-                      Google SSO is not configured.
-                    </p>
-                  ) : null}
-                </div>
-              </div>
+              <HomeAuthTabs hasGoogleOAuthConfig={hasGoogleOAuthConfig} />
             )}
           </section>
         </div>
