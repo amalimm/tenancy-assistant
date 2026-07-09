@@ -220,7 +220,7 @@ interface PaymentSummary {
 
 const DASHBOARD_LIST_LIMIT = 4
 const DASHBOARD_CHART_MONTH_LIMIT = 6
-const DASHBOARD_OCCUPANCY_DAY_COUNT = 30
+const DASHBOARD_OCCUPANCY_DAY_COUNT = 14
 
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
@@ -535,8 +535,8 @@ function OccupancyBoard({
   return (
     <DashboardPanel
       className={className}
-      meta="Next 30 days"
-      title="Tenant calendar"
+      meta="Next 14 days"
+      title="Tenant Calendar"
     >
       {model.tenantRows.length > 0 ? (
         <div className="h-full min-h-0 overflow-auto rounded-md border">
@@ -603,12 +603,55 @@ function OccupancyBoard({
             </EmptyMedia>
             <EmptyTitle>No tenants to show</EmptyTitle>
             <EmptyDescription>
-              Add tenants to see household presence over the next 30 days.
+              Add tenants to see household presence over the next 14 days.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       )}
     </DashboardPanel>
+  )
+}
+
+function ExpenseTrendFallback() {
+  return (
+    <div
+      aria-label="Not enough expense data for a trend chart"
+      className="relative h-full min-h-[13rem] overflow-hidden rounded-md border border-dashed bg-muted/20"
+      role="img"
+    >
+      <svg
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full opacity-60 blur-[1.5px]"
+        preserveAspectRatio="none"
+        viewBox="0 0 360 180"
+      >
+        <path
+          d="M0 36H360M0 72H360M0 108H360M0 144H360"
+          fill="none"
+          stroke="currentColor"
+          strokeOpacity="0.12"
+        />
+        <path
+          d="M24 132C58 96 82 104 116 76C148 50 178 62 211 44C252 22 288 58 336 34"
+          fill="none"
+          stroke="var(--chart-3)"
+          strokeLinecap="round"
+          strokeWidth="4"
+        />
+        <path
+          d="M24 132C58 96 82 104 116 76C148 50 178 62 211 44C252 22 288 58 336 34V180H24Z"
+          fill="var(--chart-3)"
+          opacity="0.08"
+        />
+      </svg>
+      <div className="absolute inset-0 bg-background/65 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+        <p className="text-sm font-semibold">Not Enough Data</p>
+        <p className="mt-1 max-w-56 text-xs text-muted-foreground">
+          Add another month to unlock expense trends.
+        </p>
+      </div>
+    </div>
   )
 }
 
@@ -681,7 +724,7 @@ function TenantRoster({
     <Card className="gap-0 py-0">
       <CardHeader className="border-b py-4">
         <div>
-          <CardTitle>Tenant roster</CardTitle>
+          <CardTitle>Tenant Roster</CardTitle>
           <CardDescription>
             Tenancy dates, email, and status.
           </CardDescription>
@@ -916,46 +959,80 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
 
       <section className="grid min-h-0 gap-3 xl:grid-cols-[minmax(0,7fr)_minmax(20rem,3fr)]">
         <div className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,0.92fr)_minmax(0,1fr)]">
-          <DashboardPanel
-            className="min-h-[18rem] xl:min-h-0"
-            meta={monthlyExpenseMeta}
-            title="Monthly expenses"
+          <section
+            aria-label="Expenses"
+            className="grid min-h-[18rem] rounded-md border bg-card p-3 xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)]"
           >
-            {monthlyExpenseData.length > 0 ? (
-              <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2">
-                <DashboardMonthlyUtilityStackChart data={monthlyExpenseData} />
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  {[
-                    ["Electricity", "var(--utility-electricity)"],
-                    ["Water", "var(--utility-water)"],
-                    ["Internet", "var(--utility-internet)"],
-                    ["Other", "var(--utility-other)"],
-                  ].map(([label, color]) => (
-                    <span className="flex items-center gap-1.5" key={label}>
-                      <span
-                        aria-hidden="true"
-                        className="size-2 rounded-[2px]"
-                        style={{ backgroundColor: color }}
-                      />
-                      {label}
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-sm font-semibold">Expenses</h2>
+              <span className="text-xs text-muted-foreground">
+                {monthlyExpenseMeta ?? expenseTrendMeta}
+              </span>
+            </div>
+            <div className="mt-3 grid min-h-0 gap-0 lg:grid-cols-2">
+              <section className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3 pr-0 lg:pr-3">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Monthly Expenses
+                </p>
+                {monthlyExpenseData.length > 0 ? (
+                  <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2">
+                    <DashboardMonthlyUtilityStackChart
+                      data={monthlyExpenseData}
+                    />
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      {[
+                        ["Electricity", "var(--utility-electricity)"],
+                        ["Water", "var(--utility-water)"],
+                        ["Internet", "var(--utility-internet)"],
+                        ["Other", "var(--utility-other)"],
+                      ].map(([label, color]) => (
+                        <span className="flex items-center gap-1.5" key={label}>
+                          <span
+                            aria-hidden="true"
+                            className="size-2 rounded-[2px]"
+                            style={{ backgroundColor: color }}
+                          />
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <Empty className="min-h-[220px]">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <ReceiptText className="text-muted-foreground" />
+                      </EmptyMedia>
+                      <EmptyTitle>No utility bills</EmptyTitle>
+                      <EmptyDescription>
+                        Add bills to compare monthly utility spend.
+                      </EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
+                )}
+              </section>
+
+              <section className="mt-3 grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3 border-t pt-3 lg:mt-0 lg:border-l lg:border-t-0 lg:pl-3 lg:pt-0">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Expense Trend
+                  </p>
+                  {expenseTrendMeta ? (
+                    <span className="text-xs text-muted-foreground">
+                      {expenseTrendMeta}
                     </span>
-                  ))}
+                  ) : null}
                 </div>
-              </div>
-            ) : (
-              <Empty className="min-h-[220px]">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <ReceiptText className="text-muted-foreground" />
-                  </EmptyMedia>
-                  <EmptyTitle>No utility bills</EmptyTitle>
-                  <EmptyDescription>
-                    Add bills to compare monthly utility spend.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            )}
-          </DashboardPanel>
+                {monthlyExpenseData.length > 1 ? (
+                  <DashboardMonthlyExpenseTrendChart
+                    data={monthlyExpenseData}
+                  />
+                ) : (
+                  <ExpenseTrendFallback />
+                )}
+              </section>
+            </div>
+          </section>
 
           <OccupancyBoard
             className="min-h-[18rem] xl:min-h-0"
@@ -963,29 +1040,14 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
           />
         </div>
 
-        <div className="grid min-h-0 gap-3 xl:grid-rows-[10rem_9rem_minmax(0,1fr)]">
-          <DashboardPanel meta={expenseTrendMeta} title="Expense trend">
-            {monthlyExpenseData.length > 1 ? (
-              <DashboardMonthlyExpenseTrendChart data={monthlyExpenseData} />
-            ) : (
-              <Empty className="min-h-[120px]">
-                <EmptyHeader>
-                  <EmptyTitle>Need another month</EmptyTitle>
-                  <EmptyDescription>
-                    Add more bills to see whether spend is rising.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            )}
-          </DashboardPanel>
-
+        <div className="grid min-h-0 gap-3 xl:grid-rows-[9rem_minmax(0,1fr)]">
           <DashboardPanel
             meta={
               paymentSummary.totalCents > 0
                 ? `${paymentSummary.collectionRate}% paid`
                 : undefined
             }
-            title="Payment queue"
+            title="Payment Queue"
           >
             <div className="grid grid-cols-3 gap-3 border-b pb-3">
               <div>
@@ -1051,7 +1113,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
                 ? `${data.billingCycles.length} total`
                 : undefined
             }
-            title="Recent bills"
+            title="Recent Bills"
           >
             <div className="h-full min-h-0 overflow-auto divide-y">
               {visibleRecentCycles.length > 0 ? (
@@ -1135,7 +1197,7 @@ function AuditLogPanel({
     <Card className="gap-0 py-0">
       <CardHeader className="border-b py-4">
         <div>
-          <CardTitle>Audit log</CardTitle>
+          <CardTitle>Audit Log</CardTitle>
           <CardDescription>
             Filter operational changes across tenants, calendar entries, and
             utilities.
@@ -1294,7 +1356,7 @@ export function DashboardAdmin({
           <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
             <Card className="gap-0 py-0">
               <CardHeader className="border-b py-4">
-                <CardTitle>Create tenant</CardTitle>
+                <CardTitle>Create Tenant</CardTitle>
                 <CardDescription>
                   Add a tenant and generate their temporary password.
                 </CardDescription>
@@ -1385,7 +1447,7 @@ export function DashboardUtilities({
       {isAdmin ? (
         <div className="rounded-lg border bg-card lg:sticky lg:top-20 lg:self-start">
           <div className="border-b px-5 py-4">
-            <h2 className="font-semibold">Create utility bill</h2>
+            <h2 className="font-semibold">Create Utility Bill</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Select the utility, period, and amount.
             </p>
@@ -1545,7 +1607,7 @@ export function DashboardUtilities({
                 <div className="rounded-md border bg-muted/20 p-3">
                   <div className="flex items-center gap-2">
                     <FileText className="size-4" />
-                    <p className="text-sm font-medium">Uploaded bills</p>
+                    <p className="text-sm font-medium">Uploaded Bills</p>
                   </div>
                   <div className="mt-2 grid gap-2">
                     {cycle.uploads.map((upload) => (
@@ -1569,7 +1631,7 @@ export function DashboardUtilities({
                   <div className="rounded-md border" key={run.id}>
                     <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                       <div>
-                        <p className="font-medium">Bill split</p>
+                        <p className="font-medium">Bill Split</p>
                         <p className="text-sm text-muted-foreground">
                           {formatDays(run.totalPresentDays)} present days ·{" "}
                           {formatRunStatus(run.status)}
