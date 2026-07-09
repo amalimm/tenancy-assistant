@@ -85,7 +85,6 @@ import {
   formatCurrency,
   formatDays,
   formatLocalDate,
-  parseLocalDate,
   toLocalDateValue,
 } from "@shared/lib/format"
 import { DateRangeFields } from "@shared/ui/date-range-fields"
@@ -170,12 +169,6 @@ type AdminTab = (typeof ADMIN_TAB)[keyof typeof ADMIN_TAB]
 
 const ALL_FILTER_VALUE = "all"
 
-const COMPACT_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-})
-
 const formatPaymentStatus = (status: string) => {
   if (status === PAYMENT_STATUS.PAID) {
     return PAYMENT_STATUS_LABEL[PAYMENT_STATUS.PAID]
@@ -199,17 +192,6 @@ const formatDateRange = (startDate: string, endDate: string | null) =>
   `${formatLocalDate(startDate)} to ${
     endDate ? formatLocalDate(addLocalDays(endDate, -1)) : "present"
   }`
-
-const formatCompactNumericDate = (dateValue: string) => {
-  const date = parseLocalDate(dateValue)
-
-  return date ? COMPACT_DATE_FORMATTER.format(date) : dateValue
-}
-
-const formatCompactNumericDateRange = (startDate: string, endDate: string) =>
-  `${formatCompactNumericDate(startDate)}-${formatCompactNumericDate(
-    addLocalDays(endDate, -1),
-  )}`
 
 const getTenantInitials = (displayName: string) => {
   const initials = displayName
@@ -952,7 +934,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
         ? "No change"
         : `${expenseDelta > 0 ? "+" : ""}${formatCurrency(expenseDelta * 100)} vs previous`
   return (
-    <div className="grid gap-3 xl:h-[calc(100dvh-5rem)] xl:grid-rows-[auto_minmax(0,1fr)] xl:overflow-hidden">
+    <div className="grid gap-3">
       <section className="grid gap-px overflow-hidden rounded-md border bg-border sm:grid-cols-2 xl:grid-cols-4">
         <DashboardKpi
           detail={presentDetail}
@@ -976,11 +958,11 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
         />
       </section>
 
-      <section className="grid min-h-0 gap-3 xl:grid-cols-[minmax(0,7fr)_minmax(20rem,3fr)]">
-        <div className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,0.92fr)_minmax(0,1fr)]">
+      <section className="grid gap-3 xl:grid-cols-[minmax(0,7fr)_minmax(20rem,3fr)]">
+        <div className="grid gap-3">
           <section
             aria-label="Expenses"
-            className="grid min-h-[18rem] rounded-md border bg-card p-3 xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)]"
+            className="grid rounded-md border bg-card p-3"
           >
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-sm font-semibold">Expenses</h2>
@@ -988,13 +970,13 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
                 {monthlyExpenseMeta ?? expenseTrendMeta}
               </span>
             </div>
-            <div className="mt-3 grid min-h-0 gap-0 lg:grid-cols-2">
-              <section className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3 pr-0 lg:pr-3">
+            <div className="mt-3 grid gap-0 lg:grid-cols-2">
+              <section className="grid gap-3 pr-0 lg:pr-3">
                 <p className="text-sm font-medium text-muted-foreground">
                   Monthly Expenses
                 </p>
                 {monthlyExpenseData.length > 0 ? (
-                  <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2">
+                  <div className="grid gap-2">
                     <DashboardMonthlyUtilityStackChart
                       data={monthlyExpenseData}
                     />
@@ -1031,7 +1013,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
                 )}
               </section>
 
-              <section className="mt-3 grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3 border-t pt-3 lg:mt-0 lg:border-l lg:border-t-0 lg:pl-3 lg:pt-0">
+              <section className="mt-3 grid gap-3 border-t pt-3 lg:mt-0 lg:border-l lg:border-t-0 lg:pl-3 lg:pt-0">
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm font-medium text-muted-foreground">
                     Expense Trend
@@ -1054,12 +1036,12 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
           </section>
 
           <OccupancyBoard
-            className="min-h-[18rem] xl:min-h-0"
+            className="min-h-[18rem]"
             model={occupancyModel}
           />
         </div>
 
-        <div className="grid min-h-0 gap-3 xl:grid-rows-[9rem_minmax(0,1fr)]">
+        <div className="grid content-start gap-3">
           <DashboardPanel
             meta={
               paymentSummary.totalCents > 0
@@ -1147,10 +1129,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {formatUtilityType(cycle.utilityType)} ·{" "}
-                        {formatCompactNumericDateRange(
-                          cycle.startDate,
-                          cycle.endDate,
-                        )}
+                        {formatDateRange(cycle.startDate, cycle.endDate)}
                       </p>
                     </div>
                     <span className="shrink-0 font-mono text-sm font-medium tabular-nums">

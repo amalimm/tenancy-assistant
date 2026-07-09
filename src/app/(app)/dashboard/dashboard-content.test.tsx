@@ -115,6 +115,14 @@ describe("DashboardOverview", () => {
     expect(within(expenses).getByText("Expense Trend Chart")).toBeInTheDocument()
   })
 
+  it("does not force dashboard panels into a viewport-height layout", () => {
+    const { container } = render(<DashboardOverview data={dashboardData} />)
+    const overview = container.firstElementChild
+
+    expect(overview).not.toHaveClass("xl:h-[calc(100dvh-5rem)]")
+    expect(overview).not.toHaveClass("xl:overflow-hidden")
+  })
+
   it("shows a professional trend fallback when there is not enough data", () => {
     render(
       <DashboardOverview
@@ -177,7 +185,7 @@ describe("DashboardOverview", () => {
     expect(trendPath).toHaveAttribute("stroke-width", "2")
   })
 
-  it("shows recent bill periods as compact numeric date ranges", () => {
+  it("shows recent bill periods with readable long date ranges", () => {
     render(<DashboardOverview data={dashboardData} />)
 
     const recentBills = screen
@@ -185,10 +193,10 @@ describe("DashboardOverview", () => {
       .closest("section")
 
     expect(recentBills).not.toBeNull()
-    expect(within(recentBills!).getByText(/01\/07\/2026-30\/07\/2026/u))
+    expect(within(recentBills!).getByText(/1 Jul 2026 to 30 Jul 2026/u))
       .toBeInTheDocument()
     expect(
-      within(recentBills!).queryByText(/1 Jul 2026 to 30 Jul 2026/u),
+      within(recentBills!).queryByText(/01\/07\/2026-30\/07\/2026/u),
     ).not.toBeInTheDocument()
   })
 })
