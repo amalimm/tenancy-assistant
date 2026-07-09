@@ -88,13 +88,14 @@ import {
   toLocalDateValue,
 } from "@shared/lib/format"
 import { DateRangeFields } from "@shared/ui/date-range-fields"
+import { PendingSubmitButton } from "@shared/ui/pending-submit-button"
 
 import {
   createAbsenceAction,
-  createBillingCycleAction,
   createHouseholdAction,
   createTenantAction,
   deleteAbsenceAction,
+  deleteBillingCycleAction,
   deleteTenantAction,
   markPaymentAction,
   regenerateTenantPasswordAction,
@@ -108,6 +109,7 @@ import {
   DashboardOccupancyChart,
   type DashboardOccupancyChartDatum,
 } from "./dashboard-charts"
+import { CreateUtilityBillForm } from "./create-utility-bill-form"
 import type {
   AuditLogFilters,
   DashboardAuditLog,
@@ -140,6 +142,7 @@ const AUDIT_ACTION_LABEL = {
   [AUDIT_ACTION.ABSENCE_UPDATED]: "Calendar entry updated",
   [AUDIT_ACTION.ALLOCATION_RUN]: "Allocation run",
   [AUDIT_ACTION.BILL_CREATED]: "Utility bill created",
+  [AUDIT_ACTION.BILL_DELETED]: "Utility bill deleted",
   [AUDIT_ACTION.BILL_UPLOADED]: "Bill uploaded",
   [AUDIT_ACTION.HOUSEHOLD_CREATED]: "Household created",
   [AUDIT_ACTION.PAYMENT_UPDATED]: "Payment updated",
@@ -499,10 +502,10 @@ export function HouseholdSetupCard({ isAdmin }: { isAdmin: boolean }) {
                 <Label htmlFor="address">Address</Label>
                 <Textarea id="address" name="address" placeholder="Optional" />
               </div>
-              <Button type="submit">
+              <PendingSubmitButton pendingLabel="Creating...">
                 <Home />
                 Create household
-              </Button>
+              </PendingSubmitButton>
             </form>
           </CardContent>
         ) : null}
@@ -1084,7 +1087,9 @@ function AuditLogPanel({
             type="date"
           />
           <div className="flex gap-2">
-            <Button type="submit">Filter</Button>
+            <PendingSubmitButton pendingLabel="Filtering...">
+              Filter
+            </PendingSubmitButton>
             <Button asChild variant="outline">
               <Link href={"/dashboard/admin?tab=audit" as Route}>Reset</Link>
             </Button>
@@ -1170,15 +1175,6 @@ export function DashboardAdmin({
 
   return (
     <div className="grid gap-4">
-      <section className="rounded-lg border bg-card p-5">
-        <Badge variant="secondary">Admin</Badge>
-        <h1 className="mt-3 text-2xl font-semibold">Admin hub</h1>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Manage tenants and review the operational audit trail for this
-          household.
-        </p>
-      </section>
-
       <Tabs defaultValue={defaultTab}>
         <TabsList>
           <TabsTrigger value={ADMIN_TAB.TENANTS}>Tenants</TabsTrigger>
@@ -1225,10 +1221,10 @@ export function DashboardAdmin({
                     <Label htmlFor="notes">Notes</Label>
                     <Textarea id="notes" name="notes" />
                   </div>
-                  <Button type="submit">
+                  <PendingSubmitButton pendingLabel="Adding...">
                     <UserPlus />
                     Add tenant
-                  </Button>
+                  </PendingSubmitButton>
                 </form>
               </CardContent>
             </Card>
@@ -1284,68 +1280,7 @@ export function DashboardUtilities({
               Select the utility, period, and amount.
             </p>
           </div>
-          <form action={createBillingCycleAction} className="grid gap-4 p-5">
-            <input
-              name="householdId"
-              type="hidden"
-              value={data.household.id}
-            />
-            <div className="grid gap-2">
-              <Label htmlFor="billName">Bill name</Label>
-              <Input
-                id="billName"
-                name="name"
-                placeholder="January 2026 electricity"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="utilityType">Utility type</Label>
-              <Select defaultValue={UTILITY_TYPE.ELECTRICITY} name="utilityType">
-                <SelectTrigger className="w-full" id="utilityType">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(UTILITY_TYPE_LABEL).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <DateRangeFields
-              endName="endDate"
-              id="billPeriod"
-              label="Bill period"
-              placeholder="Select bill dates"
-              startName="startDate"
-            />
-            <div className="grid gap-2">
-              <Label htmlFor="totalAmount">Total amount</Label>
-              <Input
-                id="totalAmount"
-                inputMode="decimal"
-                name="totalAmount"
-                placeholder="300.00"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="utilityProvider">Provider</Label>
-              <Input
-                defaultValue="SEB"
-                id="utilityProvider"
-                name="utilityProvider"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="billNotes">Notes</Label>
-              <Textarea id="billNotes" name="notes" />
-            </div>
-            <Button type="submit">
-              <ReceiptText />
-              Save bill
-            </Button>
-          </form>
+          <CreateUtilityBillForm householdId={data.household.id} />
         </div>
       ) : null}
 
@@ -1384,17 +1319,6 @@ export function DashboardUtilities({
             />
           </div>
 
-          {!hasBlobConfig && isAdmin ? (
-            <div className="mt-4 flex items-start gap-3 rounded-lg border border-dashed bg-muted/20 p-3">
-              <Upload className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Uploads are off</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Configure bill storage to attach files.
-                </p>
-              </div>
-            </div>
-          ) : null}
         </section>
 
         {data.billingCycles.length === 0 ? (
@@ -1426,12 +1350,49 @@ export function DashboardUtilities({
                 <h2 className="font-semibold">{cycle.name}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {formatDateRange(cycle.startDate, cycle.endDate)} ·{" "}
-                  {formatUtilityType(cycle.utilityType)} · {cycle.utilityProvider}
+                  {formatUtilityType(cycle.utilityType)}
                 </p>
               </div>
-              <Badge className="w-fit">
-                {formatCurrency(cycle.totalAmountCents)}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge className="w-fit">
+                  {formatCurrency(cycle.totalAmountCents)}
+                </Badge>
+                {isAdmin ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        aria-label={`Delete ${cycle.name}`}
+                        className="text-destructive hover:text-destructive focus-visible:border-destructive/40 focus-visible:ring-destructive/20"
+                        size="icon-sm"
+                        variant="outline"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this bill?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This removes its splits, payments, and uploads.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <form action={deleteBillingCycleAction}>
+                          <input
+                            name="billingCycleId"
+                            type="hidden"
+                            value={cycle.id}
+                          />
+                          <Button type="submit" variant="destructive">
+                            Delete bill
+                          </Button>
+                        </form>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : null}
+              </div>
             </div>
 
             <div className="grid gap-4 p-5">
@@ -1443,31 +1404,30 @@ export function DashboardUtilities({
                       type="hidden"
                       value={cycle.id}
                     />
-                    <Button size="sm" type="submit">
+                    <PendingSubmitButton pendingLabel="Calculating..." size="sm">
                       Calculate shares
-                    </Button>
+                    </PendingSubmitButton>
                   </form>
-                  <form
-                    action={uploadBillAction}
-                    className="flex flex-wrap items-center gap-2"
-                    encType="multipart/form-data"
-                  >
-                    <input
-                      name="billingCycleId"
-                      type="hidden"
-                      value={cycle.id}
-                    />
-                    <Input
-                      className="max-w-64"
-                      disabled={!hasBlobConfig}
-                      name="billFile"
-                      type="file"
-                    />
-                    <Button disabled={!hasBlobConfig} size="sm" type="submit">
-                      <Upload />
-                      Attach bill
-                    </Button>
-                  </form>
+                  {hasBlobConfig ? (
+                    <form
+                      action={uploadBillAction}
+                      className="flex flex-wrap items-center gap-2"
+                    >
+                      <input
+                        name="billingCycleId"
+                        type="hidden"
+                        value={cycle.id}
+                      />
+                      <Input className="max-w-64" name="billFile" type="file" />
+                      <PendingSubmitButton
+                        pendingLabel="Attaching..."
+                        size="sm"
+                      >
+                        <Upload />
+                        Attach bill
+                      </PendingSubmitButton>
+                    </form>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -1481,7 +1441,7 @@ export function DashboardUtilities({
                     {cycle.uploads.map((upload) => (
                       <a
                         className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                        href={upload.fileUrl}
+                        href={upload.downloadHref}
                         key={upload.id}
                         rel="noreferrer"
                         target="_blank"
@@ -1574,9 +1534,12 @@ export function DashboardUtilities({
                                       name="notes"
                                       placeholder="Note"
                                     />
-                                    <Button size="sm" type="submit">
+                                    <PendingSubmitButton
+                                      pendingLabel="Updating..."
+                                      size="sm"
+                                    >
                                       Update
-                                    </Button>
+                                    </PendingSubmitButton>
                                   </form>
                                 ) : (
                                   <Badge variant="outline">

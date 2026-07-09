@@ -75,8 +75,8 @@ export interface DashboardBillingCycle {
 }
 
 export interface DashboardBillUpload {
+  downloadHref: string
   fileName: string
-  fileUrl: string
   id: string
   sizeBytes: number | null
 }
@@ -368,8 +368,8 @@ const loadUploadsByCycleId = async (cycleIds: string[]) => {
     const existingUploads = uploadsByCycleId.get(upload.billingCycleId) ?? []
 
     existingUploads.push({
+      downloadHref: `/api/bills/${upload.id}`,
       fileName: upload.fileName,
-      fileUrl: upload.fileUrl,
       id: upload.id,
       sizeBytes: upload.sizeBytes,
     })

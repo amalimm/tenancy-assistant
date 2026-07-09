@@ -45,11 +45,13 @@ export function TenantPasswordResetForm({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const form = event.currentTarget
+
     setErrorMessage("")
     setSaveStatus(PASSWORD_SAVE_STATUS.SAVING)
 
     try {
-      await action(new FormData(event.currentTarget))
+      await action(new FormData(form))
       setSaveStatus(PASSWORD_SAVE_STATUS.SAVED)
     } catch (error) {
       setSaveStatus(PASSWORD_SAVE_STATUS.IDLE)

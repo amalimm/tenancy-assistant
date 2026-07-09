@@ -100,7 +100,10 @@ export default async function AccountPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <AccountPasswordForm className="max-w-md" />
+              <AccountPasswordForm
+                className="max-w-md"
+                email={session.user.email}
+              />
             </CardContent>
           </Card>
         </>

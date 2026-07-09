@@ -4,7 +4,10 @@ import { CalendarIcon } from "lucide-react"
 import type { DateRange } from "react-day-picker"
 
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
+import {
+  Calendar,
+  type CalendarDensity,
+} from "@/components/ui/calendar"
 import {
   Popover,
   PopoverContent,
@@ -23,14 +26,19 @@ export interface DateRangePickerValue {
   startDate: string
 }
 
+export type { CalendarDensity }
+
 export interface DateRangePickerProps {
   allowOpenRange?: boolean
   className?: string
   disabled?: boolean
   endDate: string
   id?: string
+  calendarDensity?: CalendarDensity
+  numberOfMonths?: number
   onRangeChange: (value: DateRangePickerValue) => void
   placeholder?: string
+  requireCompleteRange?: boolean
   startDate: string
 }
 
@@ -78,11 +86,14 @@ const formatRangeLabel = (
 export function DateRangePicker({
   allowOpenRange = false,
   className,
+  calendarDensity,
   disabled = false,
   endDate,
   id,
+  numberOfMonths = 1,
   onRangeChange,
   placeholder = "Select dates",
+  requireCompleteRange = false,
   startDate,
 }: DateRangePickerProps) {
   const selectedRange = getSelectedRange(startDate, endDate)
@@ -95,6 +106,12 @@ export function DateRangePicker({
     }
 
     const nextStartDate = toLocalDateValue(range.from)
+
+    if (requireCompleteRange && !range.to) {
+      onRangeChange({ endDate: "", startDate: nextStartDate })
+      return
+    }
+
     const inclusiveEndDate = range.to ? toLocalDateValue(range.to) : ""
     const nextEndDate = inclusiveEndDate
       ? addLocalDays(inclusiveEndDate, 1)
@@ -128,8 +145,9 @@ export function DateRangePicker({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-0">
         <Calendar
+          {...(calendarDensity ? { density: calendarDensity } : {})}
           mode="range"
-          numberOfMonths={1}
+          numberOfMonths={numberOfMonths}
           onSelect={handleSelect}
           resetOnSelect
           selected={selectedRange}

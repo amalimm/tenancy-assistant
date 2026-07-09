@@ -6,7 +6,7 @@ import { headers } from "next/headers"
 import { put } from "@vercel/blob"
 import { z } from "zod"
 
-import { env, hasBlobConfig } from "@config/env"
+import { env } from "@config/env"
 import { db } from "@db/client"
 import {
   absenceRange,
@@ -37,6 +37,14 @@ import {
   type AppSubject,
 } from "@features/auth/permissions"
 import { auth, requireRole, requireSession } from "@features/auth/auth-server"
+import { addLocalDays, formatLocalDate } from "@shared/lib/format"
+
+const UTILITY_TYPE_LABEL = {
+  [UTILITY_TYPE.ELECTRICITY]: "Electricity",
+  [UTILITY_TYPE.WATER]: "Water",
+  [UTILITY_TYPE.INTERNET]: "Internet",
+  [UTILITY_TYPE.OTHER]: "Other",
+} as const
 
 const dateRangeSchema = z
   .object({
@@ -87,14 +95,18 @@ const regenerateTenantPasswordSchema = z.object({
 
 const createBillingCycleSchema = dateRangeSchema.extend({
   householdId: z.string().min(1),
-  name: z.string().trim().min(1),
+  name: z.string().trim().optional(),
   notes: z.string().trim().optional(),
-  totalAmount: z.string().trim().min(1),
+  totalAmount: z.string().trim().min(1, "Enter total amount."),
   utilityType: z.enum(UTILITY_TYPE_VALUES).default(UTILITY_TYPE.ELECTRICITY),
   utilityProvider: z.string().trim().min(1).default("SEB"),
 })
 
 const runAllocationSchema = z.object({
+  billingCycleId: z.string().min(1),
+})
+
+const deleteBillingCycleSchema = z.object({
   billingCycleId: z.string().min(1),
 })
 
@@ -127,6 +139,37 @@ const parseAmountCents = (value: string) => {
   }
 
   return Math.round(amount * 100)
+}
+
+const formatDefaultBillName = ({
+  endDate,
+  startDate,
+  utilityType,
+}: {
+  endDate: string
+  startDate: string
+  utilityType: keyof typeof UTILITY_TYPE_LABEL
+}) =>
+  `${UTILITY_TYPE_LABEL[utilityType]} · ${formatLocalDate(startDate)} to ${formatLocalDate(addLocalDays(endDate, -1))}`
+
+const getZodErrorMessage = (error: z.ZodError) => {
+  const firstIssue = error.issues[0]
+
+  if (!firstIssue) {
+    return "Check the form and try again."
+  }
+
+  const fieldName = firstIssue.path[0]
+
+  if (fieldName === "startDate" || fieldName === "endDate") {
+    return "Select bill period."
+  }
+
+  if (typeof firstIssue.message === "string" && firstIssue.message) {
+    return firstIssue.message
+  }
+
+  return "Check the form and try again."
 }
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase()
@@ -646,7 +689,7 @@ export const deleteAbsenceAction = async (formData: FormData) => {
 
 export const createBillingCycleAction = async (formData: FormData) => {
   const session = await requireRole([USER_ROLE.ADMIN])
-  const parsed = createBillingCycleSchema.parse({
+  const parsedResult = createBillingCycleSchema.safeParse({
     endDate: getString(formData, "endDate"),
     householdId: getString(formData, "householdId"),
     name: getString(formData, "name"),
@@ -654,16 +697,28 @@ export const createBillingCycleAction = async (formData: FormData) => {
     startDate: getString(formData, "startDate"),
     totalAmount: getString(formData, "totalAmount"),
     utilityType: getString(formData, "utilityType") || UTILITY_TYPE.ELECTRICITY,
-    utilityProvider: getString(formData, "utilityProvider") || "SEB",
   })
+
+  if (!parsedResult.success) {
+    throw new Error(getZodErrorMessage(parsedResult.error))
+  }
+
+  const parsed = parsedResult.data
   const billingCycleId = createId()
   const totalAmountCents = parseAmountCents(parsed.totalAmount)
+  const billName =
+    parsed.name ||
+    formatDefaultBillName({
+      endDate: parsed.endDate,
+      startDate: parsed.startDate,
+      utilityType: parsed.utilityType,
+    })
 
   await db.insert(billingCycle).values({
     endDate: parsed.endDate,
     householdId: parsed.householdId,
     id: billingCycleId,
-    name: parsed.name,
+    name: billName,
     notes: parsed.notes,
     startDate: parsed.startDate,
     totalAmountCents,
@@ -684,7 +739,7 @@ export const createBillingCycleAction = async (formData: FormData) => {
       utilityProvider: parsed.utilityProvider,
       utilityType: parsed.utilityType,
     },
-    targetLabel: parsed.name,
+    targetLabel: billName,
   })
 
   revalidateUtilities()
@@ -808,6 +863,77 @@ export const runAllocationAction = async (formData: FormData) => {
   revalidateUtilities()
 }
 
+export const deleteBillingCycleAction = async (formData: FormData) => {
+  const session = await requireRole([USER_ROLE.ADMIN])
+  requireAbility(session.user.role, APP_ACTION.DELETE, APP_SUBJECT.BILL)
+  const parsed = deleteBillingCycleSchema.parse({
+    billingCycleId: getString(formData, "billingCycleId"),
+  })
+  const [cycle] = await db
+    .select()
+    .from(billingCycle)
+    .where(eq(billingCycle.id, parsed.billingCycleId))
+    .limit(1)
+
+  if (!cycle) {
+    throw new Error("Billing cycle not found.")
+  }
+
+  if (
+    session.user.activeHouseholdId &&
+    cycle.householdId !== session.user.activeHouseholdId
+  ) {
+    throw new Error("Bill does not belong to the active household.")
+  }
+
+  const runs = await db
+    .select({ id: allocationRun.id })
+    .from(allocationRun)
+    .where(eq(allocationRun.billingCycleId, cycle.id))
+  const runIds = runs.map((run) => run.id)
+  const lines =
+    runIds.length > 0
+      ? await db
+          .select({ id: allocationLine.id })
+          .from(allocationLine)
+          .where(inArray(allocationLine.allocationRunId, runIds))
+      : []
+  const lineIds = lines.map((line) => line.id)
+
+  if (lineIds.length > 0) {
+    await db.delete(payment).where(inArray(payment.allocationLineId, lineIds))
+  }
+
+  if (runIds.length > 0) {
+    await db
+      .delete(allocationLine)
+      .where(inArray(allocationLine.allocationRunId, runIds))
+    await db.delete(allocationRun).where(inArray(allocationRun.id, runIds))
+  }
+
+  await db.delete(billUpload).where(eq(billUpload.billingCycleId, cycle.id))
+  await db.delete(billingCycle).where(eq(billingCycle.id, parsed.billingCycleId))
+  await recordAuditLog({
+    action: AUDIT_ACTION.BILL_DELETED,
+    actorEmail: session.user.email,
+    actorUserId: session.user.id,
+    entityId: cycle.id,
+    entityType: AUDIT_ENTITY.BILL,
+    householdId: cycle.householdId,
+    metadata: {
+      allocationRunCount: runIds.length,
+      endDate: cycle.endDate,
+      paymentCount: lineIds.length,
+      startDate: cycle.startDate,
+      totalAmountCents: cycle.totalAmountCents,
+      utilityType: cycle.utilityType,
+    },
+    targetLabel: cycle.name,
+  })
+
+  revalidateUtilities()
+}
+
 export const uploadBillAction = async (formData: FormData) => {
   const session = await requireRole([USER_ROLE.ADMIN])
   const parsed = uploadBillSchema.parse({
@@ -824,7 +950,16 @@ export const uploadBillAction = async (formData: FormData) => {
     throw new Error("Billing cycle not found.")
   }
 
-  if (!hasBlobConfig) {
+  if (
+    session.user.activeHouseholdId &&
+    cycle.householdId !== session.user.activeHouseholdId
+  ) {
+    throw new Error("Bill does not belong to the active household.")
+  }
+
+  const blobReadWriteToken = env.blobReadWriteToken
+
+  if (!blobReadWriteToken) {
     throw new Error("Vercel Blob is not configured.")
   }
 
@@ -832,17 +967,22 @@ export const uploadBillAction = async (formData: FormData) => {
     throw new Error("Choose a bill file to upload.")
   }
 
-  const blob = await put(`bills/${parsed.billingCycleId}/${fileValue.name}`, fileValue, {
-    access: "public",
-    addRandomSuffix: true,
-  })
+  const blob = await put(
+    `bills/${parsed.billingCycleId}/${fileValue.name}`,
+    fileValue,
+    {
+      access: "private",
+      addRandomSuffix: true,
+      token: blobReadWriteToken,
+    },
+  )
   const uploadId = createId()
 
   await db.insert(billUpload).values({
     billingCycleId: parsed.billingCycleId,
     contentType: fileValue.type || null,
     fileName: fileValue.name,
-    fileUrl: blob.url,
+    fileUrl: blob.pathname,
     id: uploadId,
     sizeBytes: fileValue.size,
     uploadedByUserId: session.user.id,

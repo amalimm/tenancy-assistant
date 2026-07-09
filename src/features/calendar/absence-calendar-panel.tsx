@@ -11,7 +11,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -23,6 +22,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { DateRangePicker } from "@shared/ui/date-range-picker"
+import { PendingSubmitButton } from "@shared/ui/pending-submit-button"
 
 import { DEFAULT_CALENDAR_COLOR } from "./calendar-colors"
 import {
@@ -211,12 +211,12 @@ export function AbsenceCalendarPanel({
             rows={1}
           />
         </div>
-        <Button
+        <PendingSubmitButton
           disabled={!hasValidSelectedRange || !selectedTenantId}
-          type="submit"
+          pendingLabel="Saving..."
         >
           Save dates
-        </Button>
+        </PendingSubmitButton>
       </form>
 
       <form action={deleteAbsenceAction} className="hidden" ref={deleteFormRef}>

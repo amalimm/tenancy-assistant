@@ -9,16 +9,24 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { authClient } from "@features/auth/auth-client"
 
-export function AccountPasswordForm({ className }: { className?: string }) {
+export function AccountPasswordForm({
+  className,
+  email,
+}: {
+  className?: string
+  email?: string
+}) {
   const [message, setMessage] = useState("")
   const [isPending, setIsPending] = useState(false)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const form = event.currentTarget
+
     setMessage("")
     setIsPending(true)
 
-    const formData = new FormData(event.currentTarget)
+    const formData = new FormData(form)
     const currentPassword = formData.get("currentPassword")
     const newPassword = formData.get("newPassword")
 
@@ -43,13 +51,27 @@ export function AccountPasswordForm({ className }: { className?: string }) {
       return
     }
 
-    event.currentTarget.reset()
+    form.reset()
     setMessage("Password updated.")
     setIsPending(false)
   }
 
   return (
     <form className={cn("grid gap-3", className)} onSubmit={handleSubmit}>
+      {email ? (
+        <div className="sr-only">
+          <Label htmlFor="accountPasswordUsername">Username</Label>
+          <input
+            autoComplete="username"
+            id="accountPasswordUsername"
+            name="username"
+            readOnly
+            tabIndex={-1}
+            type="email"
+            value={email}
+          />
+        </div>
+      ) : null}
       <div className="grid gap-2">
         <Label htmlFor="currentPassword">Current password</Label>
         <Input
