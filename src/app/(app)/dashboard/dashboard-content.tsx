@@ -11,7 +11,7 @@ import {
 } from "lucide-react"
 import type { Route } from "next"
 import Link from "next/link"
-import type { ReactNode } from "react"
+import type { CSSProperties, ReactNode } from "react"
 
 import {
   AlertDialog,
@@ -220,6 +220,7 @@ interface PaymentSummary {
 
 const DASHBOARD_LIST_LIMIT = 4
 const DASHBOARD_CHART_MONTH_LIMIT = 6
+const DASHBOARD_OCCUPANCY_DAY_COUNT = 30
 
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
@@ -481,7 +482,7 @@ function OccupancyStatusCell({
         cell.state === OCCUPANCY_CELL_STATE.OUT &&
           "border-muted-foreground/30 bg-muted-foreground/35 hover:bg-muted-foreground/40 dark:border-muted-foreground/40 dark:bg-muted-foreground/45 dark:hover:bg-muted-foreground/55",
         cell.state === OCCUPANCY_CELL_STATE.INACTIVE &&
-          "border-dashed border-border bg-muted/50 opacity-80 dark:bg-muted/40",
+          "border-dashed border-border/80 bg-muted/30 opacity-70 hover:bg-muted/40 dark:bg-muted/20 dark:hover:bg-muted/30",
       )}
       title={label}
       type="button"
@@ -489,9 +490,18 @@ function OccupancyStatusCell({
   )
 }
 
-function OccupancyTenantGridRow({ row }: { row: OccupancyTenantRow }) {
+function OccupancyTenantGridRow({
+  gridStyle,
+  row,
+}: {
+  gridStyle: CSSProperties
+  row: OccupancyTenantRow
+}) {
   return (
-    <div className="grid grid-cols-[minmax(6rem,1.35fr)_repeat(14,minmax(0,1fr))] items-center gap-0.5 border-t px-2 py-1 first:border-t-0">
+    <div
+      className="grid items-center gap-0.5 border-t px-2 py-1 first:border-t-0"
+      style={gridStyle}
+    >
       <div className="flex min-w-0 items-center gap-1.5 pr-2">
         <span
           aria-hidden="true"
@@ -518,16 +528,23 @@ function OccupancyBoard({
   className?: string | undefined
   model: ReturnType<typeof buildOccupancyModel>
 }) {
+  const gridStyle: CSSProperties = {
+    gridTemplateColumns: `minmax(6rem,1.35fr) repeat(${model.days.length}, minmax(1.25rem,1fr))`,
+  }
+
   return (
     <DashboardPanel
       className={className}
-      meta="Next 14 days"
+      meta="Next 30 days"
       title="Tenant calendar"
     >
       {model.tenantRows.length > 0 ? (
         <div className="h-full min-h-0 overflow-auto rounded-md border">
-          <div className="min-w-[680px]">
-            <div className="sticky top-0 z-[1] grid grid-cols-[minmax(6rem,1.35fr)_repeat(14,minmax(0,1fr))] items-end gap-0.5 bg-muted/80 px-2 py-1.5 backdrop-blur">
+          <div className="min-w-[720px]">
+            <div
+              className="sticky top-0 z-[1] grid items-end gap-0.5 bg-muted/80 px-2 py-1.5 backdrop-blur"
+              style={gridStyle}
+            >
               <div className="pr-2 text-xs font-medium text-muted-foreground">
                 Tenant
               </div>
@@ -548,17 +565,21 @@ function OccupancyBoard({
             </div>
             <div>
               {model.tenantRows.map((row) => (
-                <OccupancyTenantGridRow key={row.id} row={row} />
+                <OccupancyTenantGridRow
+                  gridStyle={gridStyle}
+                  key={row.id}
+                  row={row}
+                />
               ))}
             </div>
-            <div className="grid grid-cols-3 gap-px border-t bg-border text-xs">
+            <div className="flex items-center justify-start gap-4 border-t bg-background px-2 py-1.5 text-xs text-muted-foreground">
               {[
                 ["Present", "bg-background"],
                 ["Out", "bg-muted-foreground/35 dark:bg-muted-foreground/45"],
-                ["Inactive", "bg-muted/50 dark:bg-muted/40"],
+                ["Inactive", "bg-muted/30 dark:bg-muted/20"],
               ].map(([label, swatchClassName]) => (
                 <div
-                  className="flex items-center gap-2 bg-background px-2 py-1.5 text-muted-foreground"
+                  className="flex items-center gap-2"
                   key={label}
                 >
                   <span
@@ -582,7 +603,7 @@ function OccupancyBoard({
             </EmptyMedia>
             <EmptyTitle>No tenants to show</EmptyTitle>
             <EmptyDescription>
-              Add tenants to see household presence over the next 14 days.
+              Add tenants to see household presence over the next 30 days.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -814,6 +835,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
   const currentAbsences = getCurrentAbsences(data, today)
   const occupancyModel = buildOccupancyModel({
     absences: data.absences,
+    dayCount: DASHBOARD_OCCUPANCY_DAY_COUNT,
     startDate: today,
     tenants: data.tenants,
   })
