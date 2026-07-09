@@ -137,4 +137,42 @@ describe("DashboardOverview", () => {
       within(expenses).queryByText("Need another month"),
     ).not.toBeInTheDocument()
   })
+
+  it("uses a neutral sample line for the trend fallback", () => {
+    render(
+      <DashboardOverview
+        data={{
+          ...dashboardData,
+          billingCycles: [dashboardData.billingCycles[0]!],
+        }}
+      />,
+    )
+
+    const fallbackChart = screen.getByLabelText(
+      "Not enough expense data for a trend chart",
+    )
+    const trendPath = fallbackChart.querySelector(
+      "path[data-fallback-trend-line]",
+    )
+    const pathValues =
+      trendPath
+        ?.getAttribute("d")
+        ?.match(/-?\d+(?:\.\d+)?/g)
+        ?.map(Number) ?? []
+    const yValues = pathValues.filter((_, index) => index % 2 === 1)
+    const startY = yValues[0]
+    const endY = yValues.at(-1)
+    const hasUpwardSegment = yValues.some(
+      (value, index) => index > 0 && value < yValues[index - 1]!,
+    )
+    const hasDownwardSegment = yValues.some(
+      (value, index) => index > 0 && value > yValues[index - 1]!,
+    )
+
+    expect(startY).toBeDefined()
+    expect(endY).toBeDefined()
+    expect(Math.abs(endY! - startY!)).toBeLessThanOrEqual(24)
+    expect(hasUpwardSegment).toBe(true)
+    expect(hasDownwardSegment).toBe(true)
+  })
 })

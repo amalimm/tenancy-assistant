@@ -632,14 +632,15 @@ function ExpenseTrendFallback() {
           strokeOpacity="0.12"
         />
         <path
-          d="M24 132C58 96 82 104 116 76C148 50 178 62 211 44C252 22 288 58 336 34"
+          d="M24 98C52 74 80 118 112 92C142 68 170 72 198 104C228 136 258 82 292 104C316 120 332 92 336 102"
+          data-fallback-trend-line
           fill="none"
           stroke="var(--chart-3)"
           strokeLinecap="round"
           strokeWidth="4"
         />
         <path
-          d="M24 132C58 96 82 104 116 76C148 50 178 62 211 44C252 22 288 58 336 34V180H24Z"
+          d="M24 98C52 74 80 118 112 92C142 68 170 72 198 104C228 136 258 82 292 104C316 120 332 92 336 102V180H24Z"
           fill="var(--chart-3)"
           opacity="0.08"
         />
