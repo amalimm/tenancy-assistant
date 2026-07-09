@@ -15,6 +15,7 @@ interface MockChartProps {
   cursor?: boolean
   isAnimationActive?: boolean | "auto"
   portal?: HTMLElement | null
+  shared?: boolean
   wrapperStyle?: {
     pointerEvents?: string
   }
@@ -43,6 +44,7 @@ vi.mock("@/components/ui/chart", () => ({
     cursor,
     isAnimationActive,
     portal,
+    shared,
     wrapperStyle,
   }: MockChartProps) => (
     <div
@@ -52,6 +54,7 @@ vi.mock("@/components/ui/chart", () => ({
       data-is-animation-active={String(isAnimationActive)}
       data-portal-provided={String(portal !== undefined)}
       data-pointer-events={wrapperStyle?.pointerEvents}
+      data-shared={String(shared)}
       data-testid="chart-tooltip"
     />
   ),
@@ -96,6 +99,7 @@ describe("dashboard charts", () => {
     expect(tooltip).toHaveAttribute("data-allow-escape-y", "true")
     expect(tooltip).toHaveAttribute("data-cursor", "false")
     expect(tooltip).toHaveAttribute("data-portal-provided", "false")
+    expect(tooltip).toHaveAttribute("data-shared", "false")
   })
 
   it("uses the same instant tooltip behavior for the trend chart", () => {

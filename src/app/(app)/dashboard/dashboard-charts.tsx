@@ -200,6 +200,7 @@ export function DashboardMonthlyUtilityStackChart({
           {...dashboardTooltipProps}
           content={<MonthlyExpenseTooltip />}
           cursor={false}
+          shared={false}
         />
         <Bar
           barSize={28}
