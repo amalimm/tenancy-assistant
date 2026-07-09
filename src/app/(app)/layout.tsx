@@ -33,39 +33,41 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const isAdmin = session.user.role === USER_ROLE.ADMIN
 
   return (
-    <main className="min-h-screen bg-background pb-14 text-foreground md:pb-0">
-      <header className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 py-2">
-          <div className="flex min-w-0 items-center gap-4">
+    <main className="min-h-screen bg-muted/20 pb-14 text-foreground md:pb-0">
+      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+        <div className="mx-auto flex min-h-14 max-w-7xl items-center justify-between gap-3 px-4 py-2">
+          <div className="flex min-w-0 items-center gap-3">
             <Link
-              className="flex min-w-0 items-center gap-2.5 rounded-lg outline-none transition-opacity hover:opacity-80 focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="flex min-w-0 items-center gap-2 rounded-md outline-none transition-opacity hover:opacity-80 focus-visible:ring-3 focus-visible:ring-ring/50"
               href="/"
             >
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-xs font-semibold text-primary-foreground">
+              <span className="grid size-7 shrink-0 place-items-center rounded-md border bg-muted font-mono text-[0.65rem] font-semibold text-foreground">
                 TA
               </span>
               <span className="hidden min-w-0 sm:block">
-                <span className="block truncate text-sm font-semibold">
+                <span className="block truncate text-sm font-semibold leading-none">
                   Tenancy Assistant
-                </span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  Household operations
                 </span>
               </span>
             </Link>
             <AppNav isAdmin={isAdmin} />
           </div>
           <div className="flex items-center gap-2">
-            <ThemeToggle />
+            <ThemeToggle className="size-8 rounded-md" />
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   aria-label="Open account menu"
-                  className="rounded-lg font-mono text-[0.68rem] font-semibold"
-                  size="icon-lg"
+                  className="h-8 gap-2 rounded-md px-2 font-normal"
+                  size="sm"
                   variant="outline"
                 >
-                  {userInitials}
+                  <span className="grid size-5 place-items-center rounded bg-muted font-mono text-[0.62rem] font-semibold">
+                    {userInitials}
+                  </span>
+                  <span className="hidden max-w-28 truncate sm:inline">
+                    {session.user.name}
+                  </span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent

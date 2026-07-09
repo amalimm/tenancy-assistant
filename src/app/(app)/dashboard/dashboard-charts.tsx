@@ -1,11 +1,8 @@
 "use client"
 
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
-  CartesianGrid,
   XAxis,
   YAxis,
 } from "recharts"
@@ -18,29 +15,11 @@ import {
 } from "@/components/ui/chart"
 import { formatCurrency } from "@shared/lib/format"
 
-export interface DashboardOccupancyChartDatum {
-  date: string
-  label: string
-  out: number
-  present: number
-}
-
 export interface DashboardCollectionChartDatum {
   due: number
   label: string
   paid: number
 }
-
-const occupancyChartConfig = {
-  present: {
-    color: "var(--chart-2)",
-    label: "Present",
-  },
-  out: {
-    color: "var(--chart-1)",
-    label: "Out",
-  },
-} satisfies ChartConfig
 
 const collectionChartConfig = {
   paid: {
@@ -69,59 +48,6 @@ const formatCollectionLabel = (name: unknown) => {
   }
 
   return String(name)
-}
-
-export function DashboardOccupancyChart({
-  data,
-}: {
-  data: DashboardOccupancyChartDatum[]
-}) {
-  return (
-    <ChartContainer
-      className="aspect-auto h-[270px] w-full"
-      config={occupancyChartConfig}
-      initialDimension={{ height: 270, width: 760 }}
-    >
-      <AreaChart
-        accessibilityLayer
-        data={data}
-        margin={{ bottom: 0, left: 0, right: 10, top: 10 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-        <XAxis
-          axisLine={false}
-          dataKey="label"
-          minTickGap={18}
-          tickLine={false}
-          tickMargin={8}
-        />
-        <YAxis
-          allowDecimals={false}
-          axisLine={false}
-          tickLine={false}
-          tickMargin={8}
-          width={28}
-        />
-        <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-        <Area
-          dataKey="present"
-          fill="var(--color-present)"
-          fillOpacity={0.12}
-          stroke="var(--color-present)"
-          strokeWidth={2}
-          type="monotone"
-        />
-        <Area
-          dataKey="out"
-          fill="var(--color-out)"
-          fillOpacity={0.3}
-          stroke="var(--color-out)"
-          strokeWidth={2}
-          type="monotone"
-        />
-      </AreaChart>
-    </ChartContainer>
-  )
 }
 
 export function DashboardCollectionChart({

@@ -47,10 +47,7 @@ export function AppNav({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <>
-      <nav
-        aria-label="Primary"
-        className="hidden items-center gap-1 border-l pl-4 md:flex"
-      >
+      <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = isActiveRoute(pathname, item.href)
@@ -59,9 +56,9 @@ export function AppNav({ isAdmin }: { isAdmin: boolean }) {
             <Link
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
                 isActive
-                  ? "bg-muted text-foreground"
+                  ? "border border-border bg-muted text-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
               href={item.href as Route}
@@ -78,7 +75,10 @@ export function AppNav({ isAdmin }: { isAdmin: boolean }) {
         className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 backdrop-blur md:hidden"
       >
         <div
-          className={cn("mx-auto grid max-w-7xl", isAdmin ? "grid-cols-4" : "grid-cols-3")}
+          className={cn(
+            "mx-auto grid max-w-7xl",
+            isAdmin ? "grid-cols-4" : "grid-cols-3",
+          )}
         >
           {navItems.map((item) => {
             const Icon = item.icon
@@ -88,7 +88,7 @@ export function AppNav({ isAdmin }: { isAdmin: boolean }) {
               <Link
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex h-14 flex-col items-center justify-center gap-1 text-[0.68rem] font-medium transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                  "relative flex h-14 flex-col items-center justify-center gap-1 text-[0.68rem] font-medium transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
                   isActive
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground",
@@ -96,7 +96,20 @@ export function AppNav({ isAdmin }: { isAdmin: boolean }) {
                 href={item.href as Route}
                 key={item.href}
               >
-                <Icon className="size-4" />
+                <span
+                  className={cn(
+                    "absolute top-0 h-0.5 w-8 rounded-b-full bg-transparent",
+                    isActive && "bg-muted-foreground",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "grid size-7 place-items-center rounded-md transition-colors",
+                    isActive && "bg-muted",
+                  )}
+                >
+                  <Icon className="size-4" />
+                </span>
                 {item.label}
               </Link>
             )
