@@ -975,11 +975,8 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
             </div>
             <div className="mt-3 grid min-h-0 flex-1 gap-3 lg:grid-cols-2 lg:gap-0">
               <section className="flex min-h-0 flex-col overflow-hidden pr-0 lg:pr-3">
-                <p className="shrink-0 text-sm font-medium text-muted-foreground">
-                  Monthly Expenses
-                </p>
                 {monthlyExpenseData.length > 0 ? (
-                  <div className="mt-2 flex min-h-0 flex-1 flex-col gap-2">
+                  <div className="flex min-h-0 flex-1 flex-col gap-2">
                     <DashboardMonthlyUtilityStackChart
                       data={monthlyExpenseData}
                     />
@@ -1017,17 +1014,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
               </section>
 
               <section className="flex min-h-0 flex-col overflow-hidden border-t pt-3 lg:border-l lg:border-t-0 lg:pl-3 lg:pt-0">
-                <div className="flex shrink-0 items-start justify-between gap-3">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Expense Trend
-                  </p>
-                  {expenseTrendMeta ? (
-                    <span className="text-xs text-muted-foreground">
-                      {expenseTrendMeta}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="mt-2 min-h-0 flex-1">
+                <div className="min-h-0 flex-1">
                   {monthlyExpenseData.length > 1 ? (
                     <DashboardMonthlyExpenseTrendChart
                       data={monthlyExpenseData}

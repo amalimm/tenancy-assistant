@@ -104,13 +104,13 @@ describe("DashboardOverview", () => {
     ).toBeInTheDocument()
   })
 
-  it("groups monthly expenses and expense trend under one expenses section", () => {
+  it("groups expense charts under one expenses section without nested labels", () => {
     render(<DashboardOverview data={dashboardData} />)
 
     const expenses = screen.getByLabelText("Expenses")
 
-    expect(within(expenses).getByText("Monthly Expenses")).toBeInTheDocument()
-    expect(within(expenses).getByText("Expense Trend")).toBeInTheDocument()
+    expect(within(expenses).queryByText("Monthly Expenses")).not.toBeInTheDocument()
+    expect(within(expenses).queryByText("Expense Trend")).not.toBeInTheDocument()
     expect(within(expenses).getByText("Monthly Expense Chart")).toBeInTheDocument()
     expect(within(expenses).getByText("Expense Trend Chart")).toBeInTheDocument()
   })
