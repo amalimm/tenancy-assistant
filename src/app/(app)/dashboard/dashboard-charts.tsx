@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import {
   Bar,
   BarChart,
@@ -28,16 +27,6 @@ const dashboardTooltipProps = {
   isAnimationActive: false,
   wrapperStyle: { pointerEvents: "none" },
 } as const
-
-const useDashboardTooltipPortal = () => {
-  const [portal, setPortal] = useState<HTMLElement | null>(null)
-
-  useEffect(() => {
-    setPortal(document.body)
-  }, [])
-
-  return portal
-}
 
 const utilityExpenseChartConfig = {
   [UTILITY_TYPE.ELECTRICITY]: {
@@ -179,8 +168,6 @@ export function DashboardMonthlyUtilityStackChart({
 }: {
   data: MonthlyExpenseChartDatum[]
 }) {
-  const tooltipPortal = useDashboardTooltipPortal()
-
   return (
     <ChartContainer
       className="aspect-auto h-48 min-h-0 w-full xl:h-full"
@@ -213,7 +200,6 @@ export function DashboardMonthlyUtilityStackChart({
           {...dashboardTooltipProps}
           content={<MonthlyExpenseTooltip />}
           cursor={false}
-          portal={tooltipPortal}
         />
         <Bar
           barSize={28}
@@ -251,8 +237,6 @@ export function DashboardMonthlyExpenseTrendChart({
 }: {
   data: MonthlyExpenseChartDatum[]
 }) {
-  const tooltipPortal = useDashboardTooltipPortal()
-
   return (
     <ChartContainer
       className="aspect-auto h-40 w-full xl:h-full"
@@ -286,7 +270,6 @@ export function DashboardMonthlyExpenseTrendChart({
             />
           }
           cursor={false}
-          portal={tooltipPortal}
         />
         <Line
           activeDot={{ r: 4 }}

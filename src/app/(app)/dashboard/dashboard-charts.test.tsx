@@ -14,6 +14,7 @@ interface MockChartProps {
   children?: ReactNode
   cursor?: boolean
   isAnimationActive?: boolean | "auto"
+  portal?: HTMLElement | null
   wrapperStyle?: {
     pointerEvents?: string
   }
@@ -41,6 +42,7 @@ vi.mock("@/components/ui/chart", () => ({
     allowEscapeViewBox,
     cursor,
     isAnimationActive,
+    portal,
     wrapperStyle,
   }: MockChartProps) => (
     <div
@@ -48,6 +50,7 @@ vi.mock("@/components/ui/chart", () => ({
       data-allow-escape-y={String(allowEscapeViewBox?.y)}
       data-cursor={String(cursor)}
       data-is-animation-active={String(isAnimationActive)}
+      data-portal-provided={String(portal !== undefined)}
       data-pointer-events={wrapperStyle?.pointerEvents}
       data-testid="chart-tooltip"
     />
@@ -92,6 +95,7 @@ describe("dashboard charts", () => {
     expect(tooltip).toHaveAttribute("data-allow-escape-x", "true")
     expect(tooltip).toHaveAttribute("data-allow-escape-y", "true")
     expect(tooltip).toHaveAttribute("data-cursor", "false")
+    expect(tooltip).toHaveAttribute("data-portal-provided", "false")
   })
 
   it("uses the same instant tooltip behavior for the trend chart", () => {
