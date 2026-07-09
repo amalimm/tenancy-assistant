@@ -904,18 +904,16 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
                 <DashboardMonthlyUtilityStackChart data={monthlyExpenseData} />
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   {[
-                    ["Electricity", "bg-chart-5"],
-                    ["Water", "bg-chart-3"],
-                    ["Internet", "bg-chart-2"],
-                    ["Other", "bg-chart-1"],
-                  ].map(([label, swatchClassName]) => (
+                    ["Electricity", "var(--utility-electricity)"],
+                    ["Water", "var(--utility-water)"],
+                    ["Internet", "var(--utility-internet)"],
+                    ["Other", "var(--utility-other)"],
+                  ].map(([label, color]) => (
                     <span className="flex items-center gap-1.5" key={label}>
                       <span
                         aria-hidden="true"
-                        className={cn(
-                          "size-2 rounded-[2px]",
-                          swatchClassName,
-                        )}
+                        className="size-2 rounded-[2px]"
+                        style={{ backgroundColor: color }}
                       />
                       {label}
                     </span>

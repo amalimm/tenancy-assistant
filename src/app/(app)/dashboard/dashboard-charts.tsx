@@ -23,19 +23,19 @@ import type { MonthlyExpenseChartDatum } from "./dashboard-expense-data"
 
 const utilityExpenseChartConfig = {
   [UTILITY_TYPE.ELECTRICITY]: {
-    color: "var(--chart-5)",
+    color: "var(--utility-electricity)",
     label: "Electricity",
   },
   [UTILITY_TYPE.WATER]: {
-    color: "var(--chart-3)",
+    color: "var(--utility-water)",
     label: "Water",
   },
   [UTILITY_TYPE.INTERNET]: {
-    color: "var(--chart-2)",
+    color: "var(--utility-internet)",
     label: "Internet",
   },
   [UTILITY_TYPE.OTHER]: {
-    color: "var(--chart-1)",
+    color: "var(--utility-other)",
     label: "Other",
   },
 } satisfies ChartConfig
@@ -58,6 +58,12 @@ export function DashboardMonthlyUtilityStackChart({
 }: {
   data: MonthlyExpenseChartDatum[]
 }) {
+  const hasOneMonth = data.length === 1
+
+  if (hasOneMonth) {
+    return <MonthlyUtilitySingleMonthChart data={data[0]} />
+  }
+
   return (
     <ChartContainer
       className="aspect-auto h-52 w-full"
@@ -132,6 +138,86 @@ export function DashboardMonthlyUtilityStackChart({
         />
       </BarChart>
     </ChartContainer>
+  )
+}
+
+function MonthlyUtilitySingleMonthChart({
+  data,
+}: {
+  data: MonthlyExpenseChartDatum | undefined
+}) {
+  if (!data) {
+    return null
+  }
+
+  const items = [
+    {
+      amount: data.electricity,
+      color: "var(--utility-electricity)",
+      label: "Electricity",
+    },
+    {
+      amount: data.water,
+      color: "var(--utility-water)",
+      label: "Water",
+    },
+    {
+      amount: data.internet,
+      color: "var(--utility-internet)",
+      label: "Internet",
+    },
+    {
+      amount: data.other,
+      color: "var(--utility-other)",
+      label: "Other",
+    },
+  ].filter((item) => item.amount > 0)
+
+  return (
+    <div className="grid h-full min-h-0 content-start gap-4 py-2">
+      <div>
+        <p className="text-xs text-muted-foreground">{data.monthLabel}</p>
+        <p className="mt-1 font-mono text-2xl font-semibold tabular-nums">
+          {formatCurrency(data.total * 100)}
+        </p>
+      </div>
+
+      <div className="flex h-5 overflow-hidden rounded-sm bg-muted">
+        {items.map((item) => (
+          <div
+            aria-label={`${item.label}: ${formatTooltipAmount(item.amount)}`}
+            className="min-w-1"
+            key={item.label}
+            style={{
+              backgroundColor: item.color,
+              width: `${(item.amount / data.total) * 100}%`,
+            }}
+            title={`${item.label}: ${formatTooltipAmount(item.amount)}`}
+          />
+        ))}
+      </div>
+
+      <div className="grid gap-2">
+        {items.map((item) => (
+          <div
+            className="grid grid-cols-[1fr_auto] items-center gap-3 text-sm"
+            key={item.label}
+          >
+            <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+              <span
+                aria-hidden="true"
+                className="size-2.5 rounded-[2px]"
+                style={{ backgroundColor: item.color }}
+              />
+              <span className="truncate">{item.label}</span>
+            </span>
+            <span className="font-mono font-medium tabular-nums">
+              {formatCurrency(item.amount * 100)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
