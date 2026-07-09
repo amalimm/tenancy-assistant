@@ -104,10 +104,11 @@ import {
   uploadBillAction,
 } from "./actions"
 import {
-  DashboardCollectionChart,
-  type DashboardCollectionChartDatum,
+  DashboardMonthlyExpenseTrendChart,
+  DashboardMonthlyUtilityStackChart,
 } from "./dashboard-charts"
 import { CreateUtilityBillForm } from "./create-utility-bill-form"
+import { getMonthlyExpenseChartData } from "./dashboard-expense-data"
 import type {
   AuditLogFilters,
   DashboardAuditLog,
@@ -218,6 +219,7 @@ interface PaymentSummary {
 }
 
 const DASHBOARD_LIST_LIMIT = 4
+const DASHBOARD_CHART_MONTH_LIMIT = 6
 
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
@@ -338,16 +340,6 @@ const getRecentBillingCycles = (data: DashboardData, limit = 6) =>
   [...data.billingCycles]
     .sort((first, second) => second.startDate.localeCompare(first.startDate))
     .slice(0, limit)
-
-const getCollectionChartData = (
-  summary: PaymentSummary,
-): DashboardCollectionChartDatum[] => [
-  {
-    due: summary.outstandingCents / 100,
-    label: "Collection",
-    paid: summary.paidCents / 100,
-  },
-]
 
 const formatAuditAction = (action: AuditAction) => AUDIT_ACTION_LABEL[action]
 
@@ -487,9 +479,9 @@ function OccupancyStatusCell({
         cell.state === OCCUPANCY_CELL_STATE.PRESENT &&
           "border-border bg-background hover:border-foreground/30",
         cell.state === OCCUPANCY_CELL_STATE.OUT &&
-          "border-muted-foreground/35 bg-muted-foreground/25 hover:bg-muted-foreground/30 dark:bg-muted-foreground/35 dark:hover:bg-muted-foreground/45",
+          "border-muted-foreground/30 bg-muted-foreground/35 hover:bg-muted-foreground/40 dark:border-muted-foreground/40 dark:bg-muted-foreground/45 dark:hover:bg-muted-foreground/55",
         cell.state === OCCUPANCY_CELL_STATE.INACTIVE &&
-          "border-dashed border-border bg-muted/20 opacity-70",
+          "border-dashed border-border bg-muted/50 opacity-80 dark:bg-muted/40",
       )}
       title={label}
       type="button"
@@ -499,7 +491,7 @@ function OccupancyStatusCell({
 
 function OccupancyTenantGridRow({ row }: { row: OccupancyTenantRow }) {
   return (
-    <div className="grid grid-cols-[minmax(5.5rem,1.4fr)_repeat(14,minmax(0,1fr))] items-center gap-0.5 border-t px-2 py-1 first:border-t-0">
+    <div className="grid grid-cols-[minmax(6rem,1.35fr)_repeat(14,minmax(0,1fr))] items-center gap-0.5 border-t px-2 py-1 first:border-t-0">
       <div className="flex min-w-0 items-center gap-1.5 pr-2">
         <span
           aria-hidden="true"
@@ -527,11 +519,15 @@ function OccupancyBoard({
   model: ReturnType<typeof buildOccupancyModel>
 }) {
   return (
-    <DashboardPanel className={className} meta="Next 14 days" title="Occupancy board">
+    <DashboardPanel
+      className={className}
+      meta="Next 14 days"
+      title="Tenant calendar"
+    >
       {model.tenantRows.length > 0 ? (
-        <div className="h-full max-h-[28rem] overflow-auto rounded-md border xl:max-h-none">
+        <div className="h-full min-h-0 overflow-auto rounded-md border">
           <div className="min-w-[680px]">
-            <div className="sticky top-0 z-[1] grid grid-cols-[minmax(5.5rem,1.4fr)_repeat(14,minmax(0,1fr))] items-end gap-0.5 bg-muted/70 px-2 py-1.5 backdrop-blur">
+            <div className="sticky top-0 z-[1] grid grid-cols-[minmax(6rem,1.35fr)_repeat(14,minmax(0,1fr))] items-end gap-0.5 bg-muted/80 px-2 py-1.5 backdrop-blur">
               <div className="pr-2 text-xs font-medium text-muted-foreground">
                 Tenant
               </div>
@@ -553,6 +549,27 @@ function OccupancyBoard({
             <div>
               {model.tenantRows.map((row) => (
                 <OccupancyTenantGridRow key={row.id} row={row} />
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-px border-t bg-border text-xs">
+              {[
+                ["Present", "bg-background"],
+                ["Out", "bg-muted-foreground/35 dark:bg-muted-foreground/45"],
+                ["Inactive", "bg-muted/50 dark:bg-muted/40"],
+              ].map(([label, swatchClassName]) => (
+                <div
+                  className="flex items-center gap-2 bg-background px-2 py-1.5 text-muted-foreground"
+                  key={label}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "size-3 rounded-[3px] border border-border",
+                      swatchClassName,
+                    )}
+                  />
+                  {label}
+                </div>
               ))}
             </div>
           </div>
@@ -803,18 +820,22 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
   const paymentSummary = getPaymentSummary(data)
   const recentCycles = getRecentBillingCycles(data)
   const upcomingAbsences = getUpcomingAbsences(data, today)
-  const collectionChartData = getCollectionChartData(paymentSummary)
-  const visibleOpenLines = paymentSummary.openLines.slice(
-    0,
-    DASHBOARD_LIST_LIMIT,
+  const monthlyExpenseData = getMonthlyExpenseChartData(
+    data.billingCycles,
+    DASHBOARD_CHART_MONTH_LIMIT,
   )
-  const visibleCurrentAbsences = currentAbsences.slice(0, DASHBOARD_LIST_LIMIT)
-  const visibleUpcomingAbsences = upcomingAbsences.slice(
+  const visibleOpenLines = paymentSummary.openLines.slice(
     0,
     DASHBOARD_LIST_LIMIT,
   )
   const visibleRecentCycles = recentCycles.slice(0, DASHBOARD_LIST_LIMIT)
   const nextAbsence = upcomingAbsences[0] ?? null
+  const latestExpenseMonth = monthlyExpenseData.at(-1) ?? null
+  const previousExpenseMonth = monthlyExpenseData.at(-2) ?? null
+  const expenseDelta =
+    latestExpenseMonth && previousExpenseMonth
+      ? latestExpenseMonth.total - previousExpenseMonth.total
+      : null
   const presentDetail =
     occupancyModel.today.totalActive === 1
       ? "1 active tenant"
@@ -835,6 +856,17 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
       : paymentSummary.openPaymentCount === 0
         ? "All shares paid"
         : formatOpenShareCount(paymentSummary.openPaymentCount)
+  const monthlyExpenseMeta = latestExpenseMonth
+    ? `${latestExpenseMonth.monthLabel} · ${formatCurrency(latestExpenseMonth.total * 100)}`
+    : undefined
+  const expenseTrendMeta =
+    expenseDelta === null
+      ? monthlyExpenseData.length > 0
+        ? `${monthlyExpenseData.length} ${monthlyExpenseData.length === 1 ? "month" : "months"}`
+        : undefined
+      : expenseDelta === 0
+        ? "No change"
+        : `${expenseDelta > 0 ? "+" : ""}${formatCurrency(expenseDelta * 100)} vs previous`
   return (
     <div className="grid gap-3 xl:h-[calc(100dvh-5rem)] xl:grid-rows-[auto_minmax(0,1fr)] xl:overflow-hidden">
       <section className="grid gap-px overflow-hidden rounded-md border bg-border sm:grid-cols-2 xl:grid-cols-4">
@@ -860,101 +892,82 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
         />
       </section>
 
-      <section className="grid min-h-0 gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <OccupancyBoard className="xl:row-span-2" model={occupancyModel} />
+      <section className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_10rem_minmax(0,9rem)]">
+        <div className="grid min-h-0 gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+          <DashboardPanel
+            className="min-h-[18rem] xl:min-h-0"
+            meta={monthlyExpenseMeta}
+            title="Monthly utilities"
+          >
+            {monthlyExpenseData.length > 0 ? (
+              <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2">
+                <DashboardMonthlyUtilityStackChart data={monthlyExpenseData} />
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  {[
+                    ["Electricity", "bg-chart-5"],
+                    ["Water", "bg-chart-3"],
+                    ["Internet", "bg-chart-2"],
+                    ["Other", "bg-chart-1"],
+                  ].map(([label, swatchClassName]) => (
+                    <span className="flex items-center gap-1.5" key={label}>
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "size-2 rounded-[2px]",
+                          swatchClassName,
+                        )}
+                      />
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <Empty className="min-h-[220px]">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <ReceiptText className="text-muted-foreground" />
+                  </EmptyMedia>
+                  <EmptyTitle>No utility bills</EmptyTitle>
+                  <EmptyDescription>
+                    Add bills to compare monthly utility spend.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
+          </DashboardPanel>
 
-        <DashboardPanel meta={formatLocalDate(today)} title="Today">
-          <div className="grid grid-cols-2 gap-3 border-b pb-3">
-            <div>
-              <p className="text-xs text-muted-foreground">Present</p>
-              <p className="mt-1 font-mono text-xl font-semibold tabular-nums">
-                {occupancyModel.today.present}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Out</p>
-              <p className="mt-1 font-mono text-xl font-semibold tabular-nums">
-                {occupancyModel.today.out}
-              </p>
-            </div>
-          </div>
+          <OccupancyBoard
+            className="min-h-[18rem] xl:min-h-0"
+            model={occupancyModel}
+          />
+        </div>
 
-          <div className="mt-3 max-h-24 overflow-auto xl:max-h-[7rem]">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-medium">Out today</h3>
-              <span className="text-xs text-muted-foreground">
-                {occupancyModel.today.out}
-              </span>
-            </div>
-            <div className="mt-2 divide-y">
-              {visibleCurrentAbsences.length > 0 ? (
-                visibleCurrentAbsences.map((absence) => (
-                  <div className="py-2" key={absence.id}>
-                    <p className="truncate text-sm font-medium">
-                      {absence.displayName}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Until{" "}
-                      {formatCompactDateLabel(
-                        addLocalDays(absence.endDate, -1),
-                      )}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <p className="py-2 text-xs text-muted-foreground">
-                  Everyone is in.
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-3 max-h-32 overflow-auto xl:max-h-[8rem]">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-medium">Next entry</h3>
-              <span className="text-xs text-muted-foreground">
-                {upcomingAbsences.length}
-              </span>
-            </div>
-            <div className="mt-2 divide-y">
-              {visibleUpcomingAbsences.length > 0 ? (
-                visibleUpcomingAbsences.map((absence) => (
-                  <div className="py-2" key={absence.id}>
-                    <p className="truncate text-sm font-medium">
-                      {absence.displayName}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {formatDateRange(absence.startDate, absence.endDate)}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <p className="py-2 text-xs text-muted-foreground">
-                  No upcoming entries.
-                </p>
-              )}
-            </div>
-          </div>
+        <DashboardPanel meta={expenseTrendMeta} title="Expense trend">
+          {monthlyExpenseData.length > 1 ? (
+            <DashboardMonthlyExpenseTrendChart data={monthlyExpenseData} />
+          ) : (
+            <Empty className="min-h-[120px]">
+              <EmptyHeader>
+                <EmptyTitle>Need another month</EmptyTitle>
+                <EmptyDescription>
+                  Add more bills to see whether spend is rising.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
         </DashboardPanel>
 
-        <div className="grid min-h-0 gap-3 lg:grid-cols-2 xl:grid-cols-1">
+        <div className="grid min-h-0 gap-3 lg:grid-cols-2">
           <DashboardPanel
             meta={
               paymentSummary.totalCents > 0
                 ? `${paymentSummary.collectionRate}% paid`
                 : undefined
             }
-            title="Collections"
+            title="Payment queue"
           >
-            {paymentSummary.totalCents > 0 ? (
-              <DashboardCollectionChart data={collectionChartData} />
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                No allocations yet.
-              </p>
-            )}
-
-            <div className="mt-3 grid grid-cols-3 gap-3 border-t pt-3">
+            <div className="grid grid-cols-3 gap-3 border-b pb-3">
               <div>
                 <p className="text-xs text-muted-foreground">Paid</p>
                 <p className="mt-1 truncate font-mono text-sm font-semibold tabular-nums">
@@ -975,7 +988,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
               </div>
             </div>
 
-            <div className="mt-3 max-h-36 overflow-auto divide-y xl:max-h-[9rem]">
+            <div className="mt-2 max-h-28 overflow-auto divide-y xl:max-h-[4.25rem]">
               {visibleOpenLines.length > 0 ? (
                 visibleOpenLines.map((line) => {
                   const lineOutstandingCents = Math.max(
@@ -1020,7 +1033,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
             }
             title="Recent bills"
           >
-            <div className="max-h-64 overflow-auto divide-y xl:max-h-[13rem]">
+            <div className="max-h-48 overflow-auto divide-y xl:max-h-[6.25rem]">
               {visibleRecentCycles.length > 0 ? (
                 visibleRecentCycles.map((cycle) => (
                   <div
