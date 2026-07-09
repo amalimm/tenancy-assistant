@@ -986,7 +986,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
               </div>
             </div>
 
-            <div className="mt-2 max-h-28 overflow-auto divide-y xl:max-h-[4.25rem]">
+            <div className="mt-2 h-full min-h-0 overflow-auto divide-y">
               {visibleOpenLines.length > 0 ? (
                 visibleOpenLines.map((line) => {
                   const lineOutstandingCents = Math.max(
@@ -1031,7 +1031,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
             }
             title="Recent bills"
           >
-            <div className="max-h-48 overflow-auto divide-y xl:max-h-[6.25rem]">
+            <div className="h-full min-h-0 overflow-auto divide-y">
               {visibleRecentCycles.length > 0 ? (
                 visibleRecentCycles.map((cycle) => (
                   <div

@@ -124,9 +124,8 @@ function MonthlyExpenseTooltip({
       <div className="flex items-start justify-between gap-4 border-b pb-2">
         <div>
           <p className="font-medium">{row.monthLabel}</p>
-          <p className="mt-0.5 text-muted-foreground">Total expense</p>
         </div>
-        <span className="font-mono font-semibold tabular-nums">
+        <span className="font-mono text-sm font-bold text-foreground tabular-nums">
           {formatTooltipAmount(row.total)}
         </span>
       </div>
