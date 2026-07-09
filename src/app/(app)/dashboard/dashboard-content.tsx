@@ -401,7 +401,10 @@ function DashboardPanel({
 }) {
   return (
     <section
-      className={cn("flex min-h-0 flex-col rounded-md border bg-card p-3", className)}
+      className={cn(
+        "flex min-h-0 flex-col overflow-hidden rounded-md border bg-card p-3",
+        className,
+      )}
     >
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-sm font-semibold">{title}</h2>
@@ -616,7 +619,7 @@ function ExpenseTrendFallback() {
   return (
     <div
       aria-label="Not enough expense data for a trend chart"
-      className="relative h-full min-h-[13rem] overflow-hidden rounded-md border border-dashed bg-muted/20"
+      className="relative h-44 overflow-hidden rounded-md border border-dashed bg-muted/20 xl:h-full xl:min-h-0"
       role="img"
     >
       <svg
@@ -934,7 +937,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
         ? "No change"
         : `${expenseDelta > 0 ? "+" : ""}${formatCurrency(expenseDelta * 100)} vs previous`
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-3 xl:h-[calc(100dvh-5rem)] xl:grid-rows-[auto_minmax(0,1fr)] xl:overflow-hidden">
       <section className="grid gap-px overflow-hidden rounded-md border bg-border sm:grid-cols-2 xl:grid-cols-4">
         <DashboardKpi
           detail={presentDetail}
@@ -958,11 +961,11 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
         />
       </section>
 
-      <section className="grid gap-3 xl:grid-cols-[minmax(0,7fr)_minmax(20rem,3fr)]">
-        <div className="grid gap-3">
+      <section className="grid min-h-0 gap-3 xl:grid-cols-[minmax(0,7fr)_minmax(20rem,3fr)]">
+        <div className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
           <section
             aria-label="Expenses"
-            className="grid rounded-md border bg-card p-3"
+            className="flex min-h-0 flex-col overflow-hidden rounded-md border bg-card p-3"
           >
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-sm font-semibold">Expenses</h2>
@@ -970,17 +973,17 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
                 {monthlyExpenseMeta ?? expenseTrendMeta}
               </span>
             </div>
-            <div className="mt-3 grid gap-0 lg:grid-cols-2">
-              <section className="grid gap-3 pr-0 lg:pr-3">
-                <p className="text-sm font-medium text-muted-foreground">
+            <div className="mt-3 grid min-h-0 flex-1 gap-3 lg:grid-cols-2 lg:gap-0">
+              <section className="flex min-h-0 flex-col overflow-hidden pr-0 lg:pr-3">
+                <p className="shrink-0 text-sm font-medium text-muted-foreground">
                   Monthly Expenses
                 </p>
                 {monthlyExpenseData.length > 0 ? (
-                  <div className="grid gap-2">
+                  <div className="mt-2 flex min-h-0 flex-1 flex-col gap-2">
                     <DashboardMonthlyUtilityStackChart
                       data={monthlyExpenseData}
                     />
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <div className="flex shrink-0 flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       {[
                         ["Electricity", "var(--utility-electricity)"],
                         ["Water", "var(--utility-water)"],
@@ -1013,8 +1016,8 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
                 )}
               </section>
 
-              <section className="mt-3 grid gap-3 border-t pt-3 lg:mt-0 lg:border-l lg:border-t-0 lg:pl-3 lg:pt-0">
-                <div className="flex items-start justify-between gap-3">
+              <section className="flex min-h-0 flex-col overflow-hidden border-t pt-3 lg:border-l lg:border-t-0 lg:pl-3 lg:pt-0">
+                <div className="flex shrink-0 items-start justify-between gap-3">
                   <p className="text-sm font-medium text-muted-foreground">
                     Expense Trend
                   </p>
@@ -1024,24 +1027,26 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
                     </span>
                   ) : null}
                 </div>
-                {monthlyExpenseData.length > 1 ? (
-                  <DashboardMonthlyExpenseTrendChart
-                    data={monthlyExpenseData}
-                  />
-                ) : (
-                  <ExpenseTrendFallback />
-                )}
+                <div className="mt-2 min-h-0 flex-1">
+                  {monthlyExpenseData.length > 1 ? (
+                    <DashboardMonthlyExpenseTrendChart
+                      data={monthlyExpenseData}
+                    />
+                  ) : (
+                    <ExpenseTrendFallback />
+                  )}
+                </div>
               </section>
             </div>
           </section>
 
           <OccupancyBoard
-            className="min-h-[18rem]"
+            className="min-h-[18rem] xl:min-h-0"
             model={occupancyModel}
           />
         </div>
 
-        <div className="grid content-start gap-3">
+        <div className="grid min-h-0 gap-3 xl:grid-rows-2">
           <DashboardPanel
             meta={
               paymentSummary.totalCents > 0

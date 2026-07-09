@@ -115,12 +115,13 @@ describe("DashboardOverview", () => {
     expect(within(expenses).getByText("Expense Trend Chart")).toBeInTheDocument()
   })
 
-  it("does not force dashboard panels into a viewport-height layout", () => {
+  it("bounds dashboard panels inside the desktop viewport layout", () => {
     const { container } = render(<DashboardOverview data={dashboardData} />)
     const overview = container.firstElementChild
 
-    expect(overview).not.toHaveClass("xl:h-[calc(100dvh-5rem)]")
-    expect(overview).not.toHaveClass("xl:overflow-hidden")
+    expect(overview).toHaveClass("xl:h-[calc(100dvh-5rem)]")
+    expect(overview).toHaveClass("xl:grid-rows-[auto_minmax(0,1fr)]")
+    expect(overview).toHaveClass("xl:overflow-hidden")
   })
 
   it("shows a professional trend fallback when there is not enough data", () => {

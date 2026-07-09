@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import {
   Bar,
   BarChart,
@@ -21,6 +22,22 @@ import { UTILITY_TYPE } from "@db/schema"
 import { formatCurrency } from "@shared/lib/format"
 
 import type { MonthlyExpenseChartDatum } from "./dashboard-expense-data"
+
+const dashboardTooltipProps = {
+  allowEscapeViewBox: { x: true, y: true },
+  isAnimationActive: false,
+  wrapperStyle: { pointerEvents: "none" },
+} as const
+
+const useDashboardTooltipPortal = () => {
+  const [portal, setPortal] = useState<HTMLElement | null>(null)
+
+  useEffect(() => {
+    setPortal(document.body)
+  }, [])
+
+  return portal
+}
 
 const utilityExpenseChartConfig = {
   [UTILITY_TYPE.ELECTRICITY]: {
@@ -162,11 +179,13 @@ export function DashboardMonthlyUtilityStackChart({
 }: {
   data: MonthlyExpenseChartDatum[]
 }) {
+  const tooltipPortal = useDashboardTooltipPortal()
+
   return (
     <ChartContainer
-      className="aspect-auto h-full min-h-[13rem] w-full"
+      className="aspect-auto h-48 min-h-0 w-full xl:h-full"
       config={utilityExpenseChartConfig}
-      initialDimension={{ height: 224, width: 720 }}
+      initialDimension={{ height: 192, width: 720 }}
     >
       <BarChart
         accessibilityLayer
@@ -191,8 +210,10 @@ export function DashboardMonthlyUtilityStackChart({
           width={54}
         />
         <ChartTooltip
+          {...dashboardTooltipProps}
           content={<MonthlyExpenseTooltip />}
           cursor={false}
+          portal={tooltipPortal}
         />
         <Bar
           barSize={28}
@@ -230,9 +251,11 @@ export function DashboardMonthlyExpenseTrendChart({
 }: {
   data: MonthlyExpenseChartDatum[]
 }) {
+  const tooltipPortal = useDashboardTooltipPortal()
+
   return (
     <ChartContainer
-      className="aspect-auto h-40 w-full"
+      className="aspect-auto h-40 w-full xl:h-full"
       config={expenseTrendChartConfig}
       initialDimension={{ height: 160, width: 920 }}
     >
@@ -251,6 +274,7 @@ export function DashboardMonthlyExpenseTrendChart({
         />
         <YAxis hide />
         <ChartTooltip
+          {...dashboardTooltipProps}
           content={
             <ChartTooltipContent
               formatter={(value) => (
@@ -262,6 +286,7 @@ export function DashboardMonthlyExpenseTrendChart({
             />
           }
           cursor={false}
+          portal={tooltipPortal}
         />
         <Line
           activeDot={{ r: 4 }}
