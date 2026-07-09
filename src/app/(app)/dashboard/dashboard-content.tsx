@@ -892,8 +892,8 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
         />
       </section>
 
-      <section className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_10rem_minmax(0,9rem)]">
-        <div className="grid min-h-0 gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+      <section className="grid min-h-0 gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <div className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_10rem]">
           <DashboardPanel
             className="min-h-[18rem] xl:min-h-0"
             meta={monthlyExpenseMeta}
@@ -935,28 +935,28 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
             )}
           </DashboardPanel>
 
+          <DashboardPanel meta={expenseTrendMeta} title="Expense trend">
+            {monthlyExpenseData.length > 1 ? (
+              <DashboardMonthlyExpenseTrendChart data={monthlyExpenseData} />
+            ) : (
+              <Empty className="min-h-[120px]">
+                <EmptyHeader>
+                  <EmptyTitle>Need another month</EmptyTitle>
+                  <EmptyDescription>
+                    Add more bills to see whether spend is rising.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
+          </DashboardPanel>
+        </div>
+
+        <div className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_9rem_9rem]">
           <OccupancyBoard
             className="min-h-[18rem] xl:min-h-0"
             model={occupancyModel}
           />
-        </div>
 
-        <DashboardPanel meta={expenseTrendMeta} title="Expense trend">
-          {monthlyExpenseData.length > 1 ? (
-            <DashboardMonthlyExpenseTrendChart data={monthlyExpenseData} />
-          ) : (
-            <Empty className="min-h-[120px]">
-              <EmptyHeader>
-                <EmptyTitle>Need another month</EmptyTitle>
-                <EmptyDescription>
-                  Add more bills to see whether spend is rising.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          )}
-        </DashboardPanel>
-
-        <div className="grid min-h-0 gap-3 lg:grid-cols-2">
           <DashboardPanel
             meta={
               paymentSummary.totalCents > 0
