@@ -897,7 +897,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
           <DashboardPanel
             className="min-h-[18rem] xl:min-h-0"
             meta={monthlyExpenseMeta}
-            title="Monthly utilities"
+            title="Monthly expenses"
           >
             {monthlyExpenseData.length > 0 ? (
               <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2">

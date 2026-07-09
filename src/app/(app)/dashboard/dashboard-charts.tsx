@@ -6,6 +6,7 @@ import {
   CartesianGrid,
   Line,
   LineChart,
+  type TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts"
@@ -53,22 +54,120 @@ const formatTooltipAmount = (value: unknown) => {
   return Number.isFinite(amount) ? formatCurrency(amount * 100) : String(value)
 }
 
+const formatAxisAmount = (value: unknown) => {
+  const amount = Number(value)
+
+  return Number.isFinite(amount)
+    ? new Intl.NumberFormat("en-MY", {
+        currency: "MYR",
+        maximumFractionDigits: 0,
+        notation: "compact",
+        style: "currency",
+      }).format(amount)
+    : ""
+}
+
+const monthlyExpenseCategories = [
+  {
+    color: "var(--utility-electricity)",
+    key: UTILITY_TYPE.ELECTRICITY,
+    label: "Electricity",
+  },
+  {
+    color: "var(--utility-water)",
+    key: UTILITY_TYPE.WATER,
+    label: "Water",
+  },
+  {
+    color: "var(--utility-internet)",
+    key: UTILITY_TYPE.INTERNET,
+    label: "Internet",
+  },
+  {
+    color: "var(--utility-other)",
+    key: UTILITY_TYPE.OTHER,
+    label: "Other",
+  },
+] as const
+
+const isMonthlyExpenseChartDatum = (
+  value: unknown,
+): value is MonthlyExpenseChartDatum => {
+  if (typeof value !== "object" || value === null) {
+    return false
+  }
+
+  const record = value as Record<string, unknown>
+
+  return (
+    typeof record.monthLabel === "string" &&
+    typeof record.total === "number" &&
+    monthlyExpenseCategories.every(
+      (category) => typeof record[category.key] === "number",
+    )
+  )
+}
+
+function MonthlyExpenseTooltip({
+  active,
+  payload,
+}: Partial<TooltipContentProps<number, string>>) {
+  const rowCandidate: unknown = payload?.[0]?.payload
+  const row = isMonthlyExpenseChartDatum(rowCandidate) ? rowCandidate : null
+
+  if (!active || !row) {
+    return null
+  }
+
+  return (
+    <div className="min-w-52 rounded-lg border border-border/50 bg-background px-3 py-2 text-xs shadow-xl">
+      <div className="flex items-start justify-between gap-4 border-b pb-2">
+        <div>
+          <p className="font-medium">{row.monthLabel}</p>
+          <p className="mt-0.5 text-muted-foreground">Total expense</p>
+        </div>
+        <span className="font-mono font-semibold tabular-nums">
+          {formatTooltipAmount(row.total)}
+        </span>
+      </div>
+      <div className="mt-2 grid gap-1.5">
+        {monthlyExpenseCategories.map((category) => {
+          const amount = row[category.key]
+
+          return (
+            <div
+              className="grid grid-cols-[1fr_auto] items-center gap-4"
+              key={category.key}
+            >
+              <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                <span
+                  aria-hidden="true"
+                  className="size-2 rounded-[2px]"
+                  style={{ backgroundColor: category.color }}
+                />
+                <span className="truncate">{category.label}</span>
+              </span>
+              <span className="font-mono font-medium text-foreground tabular-nums">
+                {formatTooltipAmount(amount)}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function DashboardMonthlyUtilityStackChart({
   data,
 }: {
   data: MonthlyExpenseChartDatum[]
 }) {
-  const hasOneMonth = data.length === 1
-
-  if (hasOneMonth) {
-    return <MonthlyUtilitySingleMonthChart data={data[0]} />
-  }
-
   return (
     <ChartContainer
-      className="aspect-auto h-52 w-full"
+      className="aspect-auto h-full min-h-[13rem] w-full"
       config={utilityExpenseChartConfig}
-      initialDimension={{ height: 208, width: 560 }}
+      initialDimension={{ height: 224, width: 720 }}
     >
       <BarChart
         accessibilityLayer
@@ -77,7 +176,13 @@ export function DashboardMonthlyUtilityStackChart({
         margin={{ bottom: 4, left: 0, right: 12, top: 4 }}
       >
         <CartesianGrid horizontal={false} />
-        <XAxis hide type="number" />
+        <XAxis
+          axisLine={false}
+          tickFormatter={formatAxisAmount}
+          tickLine={false}
+          tickMargin={8}
+          type="number"
+        />
         <YAxis
           axisLine={false}
           dataKey="monthLabel"
@@ -87,50 +192,30 @@ export function DashboardMonthlyUtilityStackChart({
           width={54}
         />
         <ChartTooltip
-          content={
-            <ChartTooltipContent
-              formatter={(value, name) => (
-                <div className="flex min-w-36 items-center justify-between gap-4">
-                  <span className="text-muted-foreground">
-                    {
-                      utilityExpenseChartConfig[
-                        name as keyof typeof utilityExpenseChartConfig
-                      ]?.label
-                    }
-                  </span>
-                  <span className="font-mono font-medium text-foreground tabular-nums">
-                    {formatTooltipAmount(value)}
-                  </span>
-                </div>
-              )}
-              labelFormatter={(_, payload) => {
-                const row = payload[0]?.payload as
-                  | MonthlyExpenseChartDatum
-                  | undefined
-
-                return row ? `${row.monthLabel} · ${formatTooltipAmount(row.total)}` : ""
-              }}
-            />
-          }
+          content={<MonthlyExpenseTooltip />}
           cursor={false}
         />
         <Bar
+          barSize={28}
           dataKey={UTILITY_TYPE.ELECTRICITY}
           fill="var(--color-electricity)"
           radius={[4, 0, 0, 4]}
           stackId="monthly-expense"
         />
         <Bar
+          barSize={28}
           dataKey={UTILITY_TYPE.WATER}
           fill="var(--color-water)"
           stackId="monthly-expense"
         />
         <Bar
+          barSize={28}
           dataKey={UTILITY_TYPE.INTERNET}
           fill="var(--color-internet)"
           stackId="monthly-expense"
         />
         <Bar
+          barSize={28}
           dataKey={UTILITY_TYPE.OTHER}
           fill="var(--color-other)"
           radius={[0, 4, 4, 0]}
@@ -138,86 +223,6 @@ export function DashboardMonthlyUtilityStackChart({
         />
       </BarChart>
     </ChartContainer>
-  )
-}
-
-function MonthlyUtilitySingleMonthChart({
-  data,
-}: {
-  data: MonthlyExpenseChartDatum | undefined
-}) {
-  if (!data) {
-    return null
-  }
-
-  const items = [
-    {
-      amount: data.electricity,
-      color: "var(--utility-electricity)",
-      label: "Electricity",
-    },
-    {
-      amount: data.water,
-      color: "var(--utility-water)",
-      label: "Water",
-    },
-    {
-      amount: data.internet,
-      color: "var(--utility-internet)",
-      label: "Internet",
-    },
-    {
-      amount: data.other,
-      color: "var(--utility-other)",
-      label: "Other",
-    },
-  ].filter((item) => item.amount > 0)
-
-  return (
-    <div className="grid h-full min-h-0 content-start gap-4 py-2">
-      <div>
-        <p className="text-xs text-muted-foreground">{data.monthLabel}</p>
-        <p className="mt-1 font-mono text-2xl font-semibold tabular-nums">
-          {formatCurrency(data.total * 100)}
-        </p>
-      </div>
-
-      <div className="flex h-5 overflow-hidden rounded-sm bg-muted">
-        {items.map((item) => (
-          <div
-            aria-label={`${item.label}: ${formatTooltipAmount(item.amount)}`}
-            className="min-w-1"
-            key={item.label}
-            style={{
-              backgroundColor: item.color,
-              width: `${(item.amount / data.total) * 100}%`,
-            }}
-            title={`${item.label}: ${formatTooltipAmount(item.amount)}`}
-          />
-        ))}
-      </div>
-
-      <div className="grid gap-2">
-        {items.map((item) => (
-          <div
-            className="grid grid-cols-[1fr_auto] items-center gap-3 text-sm"
-            key={item.label}
-          >
-            <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
-              <span
-                aria-hidden="true"
-                className="size-2.5 rounded-[2px]"
-                style={{ backgroundColor: item.color }}
-              />
-              <span className="truncate">{item.label}</span>
-            </span>
-            <span className="font-mono font-medium tabular-nums">
-              {formatCurrency(item.amount * 100)}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
   )
 }
 
