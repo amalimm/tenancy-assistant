@@ -85,6 +85,7 @@ import {
   formatCurrency,
   formatDays,
   formatLocalDate,
+  parseLocalDate,
   toLocalDateValue,
 } from "@shared/lib/format"
 import { DateRangeFields } from "@shared/ui/date-range-fields"
@@ -169,6 +170,12 @@ type AdminTab = (typeof ADMIN_TAB)[keyof typeof ADMIN_TAB]
 
 const ALL_FILTER_VALUE = "all"
 
+const COMPACT_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+})
+
 const formatPaymentStatus = (status: string) => {
   if (status === PAYMENT_STATUS.PAID) {
     return PAYMENT_STATUS_LABEL[PAYMENT_STATUS.PAID]
@@ -192,6 +199,17 @@ const formatDateRange = (startDate: string, endDate: string | null) =>
   `${formatLocalDate(startDate)} to ${
     endDate ? formatLocalDate(addLocalDays(endDate, -1)) : "present"
   }`
+
+const formatCompactNumericDate = (dateValue: string) => {
+  const date = parseLocalDate(dateValue)
+
+  return date ? COMPACT_DATE_FORMATTER.format(date) : dateValue
+}
+
+const formatCompactNumericDateRange = (startDate: string, endDate: string) =>
+  `${formatCompactNumericDate(startDate)}-${formatCompactNumericDate(
+    addLocalDays(endDate, -1),
+  )}`
 
 const getTenantInitials = (displayName: string) => {
   const initials = displayName
@@ -637,7 +655,7 @@ function ExpenseTrendFallback() {
           fill="none"
           stroke="var(--chart-3)"
           strokeLinecap="round"
-          strokeWidth="4"
+          strokeWidth="2"
         />
         <path
           d="M24 98C52 74 80 118 112 92C142 68 170 72 198 104C228 136 258 82 292 104C316 120 332 92 336 102V180H24Z"
@@ -1129,7 +1147,10 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {formatUtilityType(cycle.utilityType)} ·{" "}
-                        {formatDateRange(cycle.startDate, cycle.endDate)}
+                        {formatCompactNumericDateRange(
+                          cycle.startDate,
+                          cycle.endDate,
+                        )}
                       </p>
                     </div>
                     <span className="shrink-0 font-mono text-sm font-medium tabular-nums">

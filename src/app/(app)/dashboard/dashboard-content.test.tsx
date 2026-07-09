@@ -174,5 +174,21 @@ describe("DashboardOverview", () => {
     expect(Math.abs(endY! - startY!)).toBeLessThanOrEqual(24)
     expect(hasUpwardSegment).toBe(true)
     expect(hasDownwardSegment).toBe(true)
+    expect(trendPath).toHaveAttribute("stroke-width", "2")
+  })
+
+  it("shows recent bill periods as compact numeric date ranges", () => {
+    render(<DashboardOverview data={dashboardData} />)
+
+    const recentBills = screen
+      .getByRole("heading", { level: 2, name: "Recent Bills" })
+      .closest("section")
+
+    expect(recentBills).not.toBeNull()
+    expect(within(recentBills!).getByText(/01\/07\/2026-30\/07\/2026/u))
+      .toBeInTheDocument()
+    expect(
+      within(recentBills!).queryByText(/1 Jul 2026 to 30 Jul 2026/u),
+    ).not.toBeInTheDocument()
   })
 })
