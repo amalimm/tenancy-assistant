@@ -146,6 +146,7 @@ export function DateRangePicker({
       <PopoverContent align="start" className="w-auto p-0">
         <Calendar
           {...(calendarDensity ? { density: calendarDensity } : {})}
+          fixedWeeks
           mode="range"
           numberOfMonths={numberOfMonths}
           onSelect={handleSelect}

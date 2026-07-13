@@ -28,10 +28,11 @@
 - Consumes: `Calendar`, `DateRangePicker`
 - Produces: Regression coverage for native navigation hit targets and fixed popover height
 
-- [ ] **Step 1: Write the failing native-navigation test**
+- [x] **Step 1: Write the failing native-navigation test**
 
 ```tsx
 import { fireEvent, render, screen } from "@testing-library/react"
+import { describe, expect, it } from "vitest"
 
 import { Calendar } from "./calendar"
 
@@ -57,15 +58,23 @@ describe("Calendar", () => {
 })
 ```
 
-- [ ] **Step 2: Write the failing fixed-height picker test**
+- [x] **Step 2: Write the failing fixed-height picker test**
 
 ```tsx
 import { fireEvent, render, screen, within } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { DateRangePicker } from "./date-range-picker"
 
 describe("DateRangePicker", () => {
-  it("renders six week rows so month navigation remains stationary", async () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("renders six week rows so month navigation remains stationary", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 6, 13))
+
     render(
       <DateRangePicker
         endDate=""
@@ -79,13 +88,13 @@ describe("DateRangePicker", () => {
       screen.getByRole("button", { name: /select move-in date/i }),
     )
 
-    const grid = await screen.findByRole("grid")
-    expect(within(grid).getAllByRole("row")).toHaveLength(7)
+    const grid = screen.getByRole("grid")
+    expect(within(grid).getAllByRole("row")).toHaveLength(6)
   })
 })
 ```
 
-- [ ] **Step 3: Run tests and verify RED**
+- [x] **Step 3: Run tests and verify RED**
 
 Run: `npm test -- src/components/ui/calendar.test.tsx src/shared/ui/date-range-picker.test.tsx`
 
@@ -102,7 +111,7 @@ Expected: FAIL because the current calendar has no `data-slot="calendar"`, uses 
 - Consumes: `DayPicker`, `getDefaultClassNames`, `DayButton`, `Locale`, project `Button`
 - Produces: `Calendar`, `CalendarDayButton`, `CALENDAR_DENSITY`, `CalendarDensity`
 
-- [ ] **Step 1: Replace the legacy wrapper with the native structure**
+- [x] **Step 1: Replace the legacy wrapper with the native structure**
 
 Replace `src/components/ui/calendar.tsx` with:
 
@@ -151,6 +160,8 @@ function Calendar({
       captionLayout={captionLayout}
       className={cn(
         "group/calendar bg-background p-2 [--cell-radius:var(--radius-md)] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent",
+        String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
+        String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
         isCompact
           ? "[--cell-size:--spacing(6)]"
           : "[--cell-size:--spacing(7)]",
@@ -191,7 +202,7 @@ function Calendar({
           defaultClassNames.dropdowns,
         ),
         dropdown_root: cn(
-          "relative rounded-(--cell-radius)",
+          "cn-calendar-dropdown-root relative rounded-(--cell-radius)",
           defaultClassNames.dropdown_root,
         ),
         dropdown: cn(
@@ -201,8 +212,8 @@ function Calendar({
         caption_label: cn(
           "font-medium select-none",
           captionLayout === "label"
-            ? "text-sm"
-            : "flex items-center gap-1 rounded-(--cell-radius) text-sm [&>svg]:size-3.5 [&>svg]:text-muted-foreground",
+            ? "cn-calendar-caption text-sm"
+            : "cn-calendar-caption-label flex items-center gap-1 rounded-(--cell-radius) text-sm [&>svg]:size-3.5 [&>svg]:text-muted-foreground",
           defaultClassNames.caption_label,
         ),
         month_grid: cn("w-full border-collapse", defaultClassNames.month_grid),
@@ -212,8 +223,19 @@ function Calendar({
           defaultClassNames.weekday,
         ),
         week: cn("mt-2 flex w-full", defaultClassNames.week),
+        week_number_header: cn(
+          "w-(--cell-size) select-none",
+          defaultClassNames.week_number_header,
+        ),
+        week_number: cn(
+          "text-[0.8rem] text-muted-foreground select-none",
+          defaultClassNames.week_number,
+        ),
         day: cn(
           "group/day relative aspect-square h-full w-full rounded-(--cell-radius) p-0 text-center select-none [&:last-child[data-selected=true]_button]:rounded-r-(--cell-radius)",
+          props.showWeekNumber
+            ? "[&:nth-child(2)[data-selected=true]_button]:rounded-l-(--cell-radius)"
+            : "[&:first-child[data-selected=true]_button]:rounded-l-(--cell-radius)",
           defaultClassNames.day,
         ),
         range_start: cn(
@@ -265,7 +287,17 @@ function Calendar({
           )
         },
         DayButton: (dayButtonProps) => (
-          <CalendarDayButton locale={locale} {...dayButtonProps} />
+          <CalendarDayButton
+            {...(locale ? { locale } : {})}
+            {...dayButtonProps}
+          />
+        ),
+        WeekNumber: ({ children, ...weekNumberProps }) => (
+          <td {...weekNumberProps}>
+            <div className="flex size-(--cell-size) items-center justify-center text-center">
+              {children}
+            </div>
+          </td>
         ),
         ...components,
       }}
@@ -328,7 +360,7 @@ export {
 }
 ```
 
-- [ ] **Step 2: Run the calendar test and verify GREEN**
+- [x] **Step 2: Run the calendar test and verify GREEN**
 
 Run: `npm test -- src/components/ui/calendar.test.tsx`
 
@@ -345,7 +377,7 @@ Expected: PASS with direct clicks on the chevron changing February 2026 to March
 - Consumes: shared `Calendar`
 - Produces: A six-week range calendar inside every date-range popover
 
-- [ ] **Step 1: Request fixed weeks from the picker boundary**
+- [x] **Step 1: Request fixed weeks from the picker boundary**
 
 ```tsx
 <Calendar
@@ -359,13 +391,14 @@ Expected: PASS with direct clicks on the chevron changing February 2026 to March
 />
 ```
 
-- [ ] **Step 2: Run focused tests and verify GREEN**
+- [x] **Step 2: Run focused tests and verify GREEN**
 
 Run: `npm test -- src/components/ui/calendar.test.tsx src/shared/ui/date-range-picker.test.tsx`
 
-Expected: PASS; the picker grid contains one weekday header plus six week rows.
+Expected: PASS; the picker grid exposes six week rows, with weekday names as
+column headers.
 
-- [ ] **Step 3: Run repository verification**
+- [x] **Step 3: Run repository verification**
 
 Run: `npm test && npm run typecheck && npm run lint && npm run build`
 
