@@ -90,9 +90,23 @@ describe("DashboardOverview", () => {
     expect(screen.getByText("Next 14 days")).toBeInTheDocument()
     expect(screen.queryByText("Next 30 days")).not.toBeInTheDocument()
 
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Tenant Calendar" }),
-    ).toBeInTheDocument()
+    const calendarHeading = screen.getByRole("heading", {
+      level: 2,
+      name: "Tenant Calendar",
+    })
+    const calendarPanel = calendarHeading.closest("section")
+
+    expect(calendarHeading).toBeInTheDocument()
+    expect(calendarPanel).not.toBeNull()
+
+    const occupancyLegend = within(calendarPanel!).getByRole("group", {
+      name: "Occupancy status legend",
+    })
+
+    expect(calendarHeading.parentElement).toContainElement(occupancyLegend)
+    expect(occupancyLegend).toHaveTextContent("Present")
+    expect(occupancyLegend).toHaveTextContent("Out")
+    expect(occupancyLegend).toHaveTextContent("Inactive")
     expect(
       screen.getByRole("heading", { level: 2, name: "Expenses" }),
     ).toBeInTheDocument()

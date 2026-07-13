@@ -28,7 +28,7 @@
 - Consumes: `DashboardPanel`, `OccupancyBoard`, `ReactNode`
 - Produces: A labelled `Occupancy status legend` group inside the Tenant Calendar header
 
-- [ ] **Step 1: Write the failing placement test**
+- [x] **Step 1: Write the failing placement test**
 
 Add to the existing Tenant Calendar test after its heading assertion:
 
@@ -51,13 +51,13 @@ expect(occupancyLegend).toHaveTextContent("Out")
 expect(occupancyLegend).toHaveTextContent("Inactive")
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run: `npm test -- 'src/app/(app)/dashboard/dashboard-content.test.tsx'`
 
 Expected: FAIL because no labelled occupancy legend exists in the panel header.
 
-- [ ] **Step 3: Implement the compact header legend**
+- [x] **Step 3: Implement the compact header legend**
 
 Change the `DashboardPanel` metadata prop and wrapper to:
 
@@ -109,13 +109,13 @@ meta={
 
 Delete the existing bottom legend `<div>` after the tenant rows.
 
-- [ ] **Step 4: Run verification and verify GREEN**
+- [x] **Step 4: Run verification and verify GREEN**
 
 Run: `npm test -- 'src/app/(app)/dashboard/dashboard-content.test.tsx' && npm run typecheck && npm run lint`
 
 Expected: The dashboard tests pass and both static checks exit 0.
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run: `npm test`
 

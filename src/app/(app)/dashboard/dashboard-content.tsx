@@ -396,7 +396,7 @@ function DashboardPanel({
 }: {
   children: ReactNode
   className?: string | undefined
-  meta?: string | undefined
+  meta?: ReactNode
   title: string
 }) {
   return (
@@ -409,7 +409,7 @@ function DashboardPanel({
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-sm font-semibold">{title}</h2>
         {meta ? (
-          <span className="text-xs text-muted-foreground">{meta}</span>
+          <div className="text-xs text-muted-foreground">{meta}</div>
         ) : null}
       </div>
       <div className="mt-3 min-h-0 flex-1">{children}</div>
@@ -493,6 +493,12 @@ function OccupancyStatusCell({
   )
 }
 
+const OCCUPANCY_STATUS_LEGEND = [
+  ["Present", "bg-background"],
+  ["Out", "bg-muted-foreground/35 dark:bg-muted-foreground/45"],
+  ["Inactive", "bg-muted/30 dark:bg-muted/20"],
+] as const
+
 function OccupancyTenantGridRow({
   gridStyle,
   row,
@@ -538,7 +544,33 @@ function OccupancyBoard({
   return (
     <DashboardPanel
       className={className}
-      meta="Next 14 days"
+      meta={
+        <div className="flex max-w-full flex-col items-end gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+          <span className="whitespace-nowrap">Next 14 days</span>
+          {model.tenantRows.length > 0 ? (
+            <div
+              aria-label="Occupancy status legend"
+              className="flex flex-wrap items-center justify-end gap-3"
+              role="group"
+            >
+              {OCCUPANCY_STATUS_LEGEND.map(
+                ([label, swatchClassName]) => (
+                  <span className="flex items-center gap-1.5" key={label}>
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "size-2.5 rounded-[3px] border border-border",
+                        swatchClassName,
+                      )}
+                    />
+                    {label}
+                  </span>
+                ),
+              )}
+            </div>
+          ) : null}
+        </div>
+      }
       title="Tenant Calendar"
     >
       {model.tenantRows.length > 0 ? (
@@ -573,27 +605,6 @@ function OccupancyBoard({
                   key={row.id}
                   row={row}
                 />
-              ))}
-            </div>
-            <div className="flex items-center justify-start gap-4 border-t bg-background px-2 py-1.5 text-xs text-muted-foreground">
-              {[
-                ["Present", "bg-background"],
-                ["Out", "bg-muted-foreground/35 dark:bg-muted-foreground/45"],
-                ["Inactive", "bg-muted/30 dark:bg-muted/20"],
-              ].map(([label, swatchClassName]) => (
-                <div
-                  className="flex items-center gap-2"
-                  key={label}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "size-3 rounded-[3px] border border-border",
-                      swatchClassName,
-                    )}
-                  />
-                  {label}
-                </div>
               ))}
             </div>
           </div>
