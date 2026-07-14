@@ -220,7 +220,7 @@ interface PaymentSummary {
 
 const DASHBOARD_LIST_LIMIT = 4
 const DASHBOARD_CHART_MONTH_LIMIT = 6
-const DASHBOARD_OCCUPANCY_DAY_COUNT = 14
+const DASHBOARD_OCCUPANCY_DAY_COUNT = 30
 
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
@@ -480,12 +480,7 @@ function OccupancyStatusCell({
       aria-label={label}
       className={cn(
         "h-6 min-w-0 rounded-[3px] border transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-        cell.state === OCCUPANCY_CELL_STATE.PRESENT &&
-          "border-border bg-background hover:border-foreground/30",
-        cell.state === OCCUPANCY_CELL_STATE.OUT &&
-          "border-muted-foreground/30 bg-muted-foreground/35 hover:bg-muted-foreground/40 dark:border-muted-foreground/40 dark:bg-muted-foreground/45 dark:hover:bg-muted-foreground/55",
-        cell.state === OCCUPANCY_CELL_STATE.INACTIVE &&
-          "border-dashed border-border/80 bg-muted/30 opacity-70 hover:bg-muted/40 dark:bg-muted/20 dark:hover:bg-muted/30",
+        OCCUPANCY_STATUS_STYLE[cell.state].cell,
       )}
       title={label}
       type="button"
@@ -493,10 +488,27 @@ function OccupancyStatusCell({
   )
 }
 
+const OCCUPANCY_STATUS_STYLE = {
+  [OCCUPANCY_CELL_STATE.PRESENT]: {
+    cell: "border-border bg-muted/20 hover:bg-muted/30 dark:bg-muted/20 dark:hover:bg-muted/30",
+    swatch: "border-border bg-muted/20 dark:bg-muted/20",
+  },
+  [OCCUPANCY_CELL_STATE.OUT]: {
+    cell: "border-muted-foreground/30 bg-muted-foreground/35 hover:bg-muted-foreground/45 dark:border-muted-foreground/40 dark:bg-muted-foreground/45 dark:hover:bg-muted-foreground/55",
+    swatch:
+      "border-muted-foreground/30 bg-muted-foreground/35 dark:border-muted-foreground/40 dark:bg-muted-foreground/45",
+  },
+  [OCCUPANCY_CELL_STATE.INACTIVE]: {
+    cell: "border-dashed border-muted-foreground/50 bg-muted-foreground/60 hover:bg-muted-foreground/70 dark:border-muted-foreground/60 dark:bg-muted-foreground/65 dark:hover:bg-muted-foreground/75",
+    swatch:
+      "border-dashed border-muted-foreground/50 bg-muted-foreground/60 dark:border-muted-foreground/60 dark:bg-muted-foreground/65",
+  },
+} as const
+
 const OCCUPANCY_STATUS_LEGEND = [
-  ["Present", "bg-background"],
-  ["Out", "bg-muted-foreground/35 dark:bg-muted-foreground/45"],
-  ["Inactive", "bg-muted/30 dark:bg-muted/20"],
+  ["Present", OCCUPANCY_CELL_STATE.PRESENT],
+  ["Out", OCCUPANCY_CELL_STATE.OUT],
+  ["Inactive", OCCUPANCY_CELL_STATE.INACTIVE],
 ] as const
 
 function OccupancyTenantGridRow({
@@ -538,7 +550,7 @@ function OccupancyBoard({
   model: ReturnType<typeof buildOccupancyModel>
 }) {
   const gridStyle: CSSProperties = {
-    gridTemplateColumns: `minmax(6rem,1.35fr) repeat(${model.days.length}, minmax(1.25rem,1fr))`,
+    gridTemplateColumns: `minmax(7rem,1.35fr) repeat(${model.days.length}, minmax(1.25rem,1fr))`,
   }
 
   return (
@@ -546,7 +558,9 @@ function OccupancyBoard({
       className={className}
       meta={
         <div className="flex max-w-full flex-col items-end gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-          <span className="whitespace-nowrap">Next 14 days</span>
+          <span className="whitespace-nowrap">
+            Next {DASHBOARD_OCCUPANCY_DAY_COUNT} days
+          </span>
           {model.tenantRows.length > 0 ? (
             <div
               aria-label="Occupancy status legend"
@@ -554,13 +568,13 @@ function OccupancyBoard({
               role="group"
             >
               {OCCUPANCY_STATUS_LEGEND.map(
-                ([label, swatchClassName]) => (
+                ([label, state]) => (
                   <span className="flex items-center gap-1.5" key={label}>
                     <span
                       aria-hidden="true"
                       className={cn(
                         "size-2.5 rounded-[3px] border border-border",
-                        swatchClassName,
+                        OCCUPANCY_STATUS_STYLE[state].swatch,
                       )}
                     />
                     {label}
@@ -617,7 +631,8 @@ function OccupancyBoard({
             </EmptyMedia>
             <EmptyTitle>No tenants to show</EmptyTitle>
             <EmptyDescription>
-              Add tenants to see household presence over the next 14 days.
+              Add tenants to see household presence over the next{" "}
+              {DASHBOARD_OCCUPANCY_DAY_COUNT} days.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

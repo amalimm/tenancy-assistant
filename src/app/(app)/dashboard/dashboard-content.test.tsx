@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { UTILITY_TYPE, USER_ROLE } from "@db/schema"
 
@@ -84,11 +84,22 @@ const dashboardData: DashboardData = {
 }
 
 describe("DashboardOverview", () => {
-  it("shows a 14-day tenant calendar and title-case dashboard sections", () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("shows a 30-day tenant calendar with a wider tenant column", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 6, 13))
+
     render(<DashboardOverview data={dashboardData} />)
 
-    expect(screen.getByText("Next 14 days")).toBeInTheDocument()
-    expect(screen.queryByText("Next 30 days")).not.toBeInTheDocument()
+    expect(screen.getByText("Next 30 days")).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", {
+        name: "Asha, 11 Aug 2026: present",
+      }),
+    ).toBeInTheDocument()
 
     const calendarHeading = screen.getByRole("heading", {
       level: 2,
@@ -98,6 +109,10 @@ describe("DashboardOverview", () => {
 
     expect(calendarHeading).toBeInTheDocument()
     expect(calendarPanel).not.toBeNull()
+    expect(within(calendarPanel!).getByText("Tenant").parentElement).toHaveStyle({
+      gridTemplateColumns:
+        "minmax(7rem,1.35fr) repeat(30, minmax(1.25rem,1fr))",
+    })
 
     const occupancyLegend = within(calendarPanel!).getByRole("group", {
       name: "Occupancy status legend",
@@ -127,6 +142,71 @@ describe("DashboardOverview", () => {
     expect(within(expenses).queryByText("Expense Trend")).not.toBeInTheDocument()
     expect(within(expenses).getByText("Monthly Expense Chart")).toBeInTheDocument()
     expect(within(expenses).getByText("Expense Trend Chart")).toBeInTheDocument()
+  })
+
+  it("uses a distinct status palette for occupancy cells and the legend", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 6, 13))
+
+    const tenant = dashboardData.tenants[0]!
+
+    render(
+      <DashboardOverview
+        data={{
+          ...dashboardData,
+          absences: [
+            {
+              calendarColor: tenant.calendarColor,
+              displayName: tenant.displayName,
+              endDate: "2026-07-15",
+              id: "absence-1",
+              reason: null,
+              startDate: "2026-07-14",
+              tenantId: tenant.id,
+            },
+          ],
+          tenants: [{ ...tenant, tenancyEndDate: "2026-07-15" }],
+        }}
+      />,
+    )
+
+    expect(
+      screen.getByRole("button", {
+        name: "Asha, 13 Jul 2026: present",
+      }),
+    ).toHaveClass("border-border", "bg-muted/20")
+    expect(
+      screen.getByRole("button", {
+        name: /Asha, 14 Jul 2026: out/,
+      }),
+    ).toHaveClass("border-muted-foreground/30", "bg-muted-foreground/35")
+    expect(
+      screen.getByRole("button", {
+        name: "Asha, 15 Jul 2026: tenancy inactive",
+      }),
+    ).toHaveClass(
+      "border-dashed",
+      "border-muted-foreground/50",
+      "bg-muted-foreground/60",
+    )
+
+    const legend = screen.getByRole("group", {
+      name: "Occupancy status legend",
+    })
+
+    expect(within(legend).getByText("Present").firstElementChild).toHaveClass(
+      "border-border",
+      "bg-muted/20",
+    )
+    expect(within(legend).getByText("Out").firstElementChild).toHaveClass(
+      "border-muted-foreground/30",
+      "bg-muted-foreground/35",
+    )
+    expect(within(legend).getByText("Inactive").firstElementChild).toHaveClass(
+      "border-dashed",
+      "border-muted-foreground/50",
+      "bg-muted-foreground/60",
+    )
   })
 
   it("bounds dashboard panels inside the desktop viewport layout", () => {
