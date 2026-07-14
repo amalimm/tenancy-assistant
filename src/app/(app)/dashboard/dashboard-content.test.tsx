@@ -179,7 +179,7 @@ describe("DashboardOverview", () => {
       screen.getByRole("button", {
         name: /Asha, 14 Jul 2026: out/,
       }),
-    ).toHaveClass("border-muted-foreground/30", "bg-muted-foreground/35")
+    ).toHaveClass("border-muted-foreground/30", "bg-muted-foreground/25")
     expect(
       screen.getByRole("button", {
         name: "Asha, 15 Jul 2026: tenancy inactive",
@@ -187,7 +187,7 @@ describe("DashboardOverview", () => {
     ).toHaveClass(
       "border-dashed",
       "border-muted-foreground/50",
-      "bg-muted-foreground/60",
+      "bg-muted-foreground/45",
     )
 
     const legend = screen.getByRole("group", {
@@ -200,12 +200,12 @@ describe("DashboardOverview", () => {
     )
     expect(within(legend).getByText("Out").firstElementChild).toHaveClass(
       "border-muted-foreground/30",
-      "bg-muted-foreground/35",
+      "bg-muted-foreground/25",
     )
     expect(within(legend).getByText("Inactive").firstElementChild).toHaveClass(
       "border-dashed",
       "border-muted-foreground/50",
-      "bg-muted-foreground/60",
+      "bg-muted-foreground/45",
     )
   })
 

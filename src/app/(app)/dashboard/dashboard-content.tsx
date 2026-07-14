@@ -494,14 +494,14 @@ const OCCUPANCY_STATUS_STYLE = {
     swatch: "border-border bg-muted/20 dark:bg-muted/20",
   },
   [OCCUPANCY_CELL_STATE.OUT]: {
-    cell: "border-muted-foreground/30 bg-muted-foreground/35 hover:bg-muted-foreground/45 dark:border-muted-foreground/40 dark:bg-muted-foreground/45 dark:hover:bg-muted-foreground/55",
+    cell: "border-muted-foreground/30 bg-muted-foreground/25 hover:bg-muted-foreground/35 dark:border-muted-foreground/40 dark:bg-muted-foreground/35 dark:hover:bg-muted-foreground/45",
     swatch:
-      "border-muted-foreground/30 bg-muted-foreground/35 dark:border-muted-foreground/40 dark:bg-muted-foreground/45",
+      "border-muted-foreground/30 bg-muted-foreground/25 dark:border-muted-foreground/40 dark:bg-muted-foreground/35",
   },
   [OCCUPANCY_CELL_STATE.INACTIVE]: {
-    cell: "border-dashed border-muted-foreground/50 bg-muted-foreground/60 hover:bg-muted-foreground/70 dark:border-muted-foreground/60 dark:bg-muted-foreground/65 dark:hover:bg-muted-foreground/75",
+    cell: "border-dashed border-muted-foreground/50 bg-muted-foreground/45 hover:bg-muted-foreground/55 dark:border-muted-foreground/60 dark:bg-muted-foreground/50 dark:hover:bg-muted-foreground/60",
     swatch:
-      "border-dashed border-muted-foreground/50 bg-muted-foreground/60 dark:border-muted-foreground/60 dark:bg-muted-foreground/65",
+      "border-dashed border-muted-foreground/50 bg-muted-foreground/45 dark:border-muted-foreground/60 dark:bg-muted-foreground/50",
   },
 } as const
 
@@ -1008,10 +1008,10 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
                     />
                     <div className="flex shrink-0 flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       {[
-                        ["Electricity", "var(--utility-electricity)"],
-                        ["Water", "var(--utility-water)"],
-                        ["Internet", "var(--utility-internet)"],
-                        ["Other", "var(--utility-other)"],
+                        ["Electricity", "var(--expense-electricity)"],
+                        ["Water", "var(--expense-water)"],
+                        ["Internet", "var(--expense-internet)"],
+                        ["Other", "var(--expense-other)"],
                       ].map(([label, color]) => (
                         <span className="flex items-center gap-1.5" key={label}>
                           <span

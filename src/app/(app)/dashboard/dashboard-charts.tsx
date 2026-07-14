@@ -30,19 +30,19 @@ const dashboardTooltipProps = {
 
 const utilityExpenseChartConfig = {
   [UTILITY_TYPE.ELECTRICITY]: {
-    color: "var(--utility-electricity)",
+    color: "var(--expense-electricity)",
     label: "Electricity",
   },
   [UTILITY_TYPE.WATER]: {
-    color: "var(--utility-water)",
+    color: "var(--expense-water)",
     label: "Water",
   },
   [UTILITY_TYPE.INTERNET]: {
-    color: "var(--utility-internet)",
+    color: "var(--expense-internet)",
     label: "Internet",
   },
   [UTILITY_TYPE.OTHER]: {
-    color: "var(--utility-other)",
+    color: "var(--expense-other)",
     label: "Other",
   },
 } satisfies ChartConfig
@@ -75,22 +75,22 @@ const formatAxisAmount = (value: unknown) => {
 
 const monthlyExpenseCategories = [
   {
-    color: "var(--utility-electricity)",
+    color: "var(--expense-electricity)",
     key: UTILITY_TYPE.ELECTRICITY,
     label: "Electricity",
   },
   {
-    color: "var(--utility-water)",
+    color: "var(--expense-water)",
     key: UTILITY_TYPE.WATER,
     label: "Water",
   },
   {
-    color: "var(--utility-internet)",
+    color: "var(--expense-internet)",
     key: UTILITY_TYPE.INTERNET,
     label: "Internet",
   },
   {
-    color: "var(--utility-other)",
+    color: "var(--expense-other)",
     key: UTILITY_TYPE.OTHER,
     label: "Other",
   },
