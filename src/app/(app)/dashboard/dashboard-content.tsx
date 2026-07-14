@@ -240,6 +240,48 @@ const formatOpenShareCount = (count: number) =>
 const formatCompactDateLabel = (dateValue: string) =>
   formatLocalDate(dateValue).replace(/\s\d{4}$/, "")
 
+interface OccupancyHeaderDay {
+  date: string
+}
+
+interface OccupancyMonthGroup {
+  dayCount: number
+  key: string
+  label: string
+  startColumn: number
+}
+
+const formatOccupancyMonthLabel = (monthKey: string) =>
+  formatLocalDate(`${monthKey}-01`).replace(/^\d+\s/, "")
+
+const formatOccupancyDayLabel = (dateValue: string) =>
+  String(Number(dateValue.slice(-2)))
+
+const getOccupancyMonthGroups = (
+  days: OccupancyHeaderDay[],
+): OccupancyMonthGroup[] => {
+  const groups: OccupancyMonthGroup[] = []
+
+  days.forEach((day, dayIndex) => {
+    const monthKey = day.date.slice(0, 7)
+    const previousGroup = groups.at(-1)
+
+    if (previousGroup?.key === monthKey) {
+      previousGroup.dayCount += 1
+      return
+    }
+
+    groups.push({
+      dayCount: 1,
+      key: monthKey,
+      label: formatOccupancyMonthLabel(monthKey),
+      startColumn: dayIndex + 2,
+    })
+  })
+
+  return groups
+}
+
 const getLatestAllocationRunsByCycle = (data: DashboardData) => {
   const runByCycleId = new Map<string, DashboardAllocationRunView>()
 
@@ -552,6 +594,11 @@ function OccupancyBoard({
   const gridStyle: CSSProperties = {
     gridTemplateColumns: `minmax(7rem,1.35fr) repeat(${model.days.length}, minmax(1.25rem,1fr))`,
   }
+  const headerGridStyle: CSSProperties = {
+    ...gridStyle,
+    gridTemplateRows: "auto auto",
+  }
+  const monthGroups = getOccupancyMonthGroups(model.days)
 
   return (
     <DashboardPanel
@@ -591,24 +638,35 @@ function OccupancyBoard({
         <div className="h-full min-h-0 overflow-auto rounded-md border">
           <div className="min-w-[720px]">
             <div
-              className="sticky top-0 z-[1] grid items-end gap-0.5 bg-muted/80 px-2 py-1.5 backdrop-blur"
-              style={gridStyle}
+              className="sticky top-0 z-[1] grid items-center gap-x-0.5 gap-y-1 bg-muted/80 px-2 py-1.5 backdrop-blur"
+              style={headerGridStyle}
             >
-              <div className="pr-2 text-xs font-medium text-muted-foreground">
+              <div
+                className="flex self-stretch items-center pr-2 text-xs font-medium text-muted-foreground"
+                style={{ gridColumn: 1, gridRow: "1 / span 2" }}
+              >
                 Tenant
               </div>
-              {model.days.map((day) => (
+              {monthGroups.map((monthGroup) => (
                 <div
-                  className="text-center font-mono text-[0.58rem] leading-tight text-muted-foreground tabular-nums"
-                  key={day.date}
+                  className="border-b border-border/70 pb-1 text-center text-[0.62rem] font-medium text-muted-foreground"
+                  key={monthGroup.key}
+                  style={{
+                    gridColumn: `${monthGroup.startColumn} / span ${monthGroup.dayCount}`,
+                    gridRow: 1,
+                  }}
                 >
-                  {formatCompactDateLabel(day.date)
-                    .split(" ")
-                    .map((datePart) => (
-                      <span className="block" key={datePart}>
-                        {datePart}
-                      </span>
-                    ))}
+                  {monthGroup.label}
+                </div>
+              ))}
+              {model.days.map((day, dayIndex) => (
+                <div
+                  className="text-center font-mono text-[0.62rem] leading-none text-muted-foreground tabular-nums"
+                  key={day.date}
+                  style={{ gridColumn: dayIndex + 2, gridRow: 2 }}
+                  title={formatLocalDate(day.date)}
+                >
+                  {formatOccupancyDayLabel(day.date)}
                 </div>
               ))}
             </div>

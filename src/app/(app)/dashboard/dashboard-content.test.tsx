@@ -113,6 +113,9 @@ describe("DashboardOverview", () => {
       gridTemplateColumns:
         "minmax(7rem,1.35fr) repeat(30, minmax(1.25rem,1fr))",
     })
+    expect(within(calendarPanel!).getByText("Jul 2026")).toBeInTheDocument()
+    expect(within(calendarPanel!).getByText("Aug 2026")).toBeInTheDocument()
+    expect(within(calendarPanel!).queryByText("13 Jul")).not.toBeInTheDocument()
 
     const occupancyLegend = within(calendarPanel!).getByRole("group", {
       name: "Occupancy status legend",

@@ -149,13 +149,13 @@
 
     --utility-other: oklch(0.62 0.02 260);
 
-    --expense-electricity: oklch(0.78 0.1 82);
+    --expense-electricity: #fc8d62;
 
-    --expense-water: oklch(0.74 0.08 235);
+    --expense-water: #8da0cb;
 
-    --expense-internet: oklch(0.72 0.07 170);
+    --expense-internet: #66c2a5;
 
-    --expense-other: oklch(0.76 0.015 260);
+    --expense-other: #b3b3b3;
 
     --radius: 0.625rem;
 
@@ -232,13 +232,13 @@
 
     --utility-other: oklch(0.72 0.02 260);
 
-    --expense-electricity: oklch(0.74 0.08 82);
+    --expense-electricity: #fc8d62;
 
-    --expense-water: oklch(0.69 0.07 235);
+    --expense-water: #8da0cb;
 
-    --expense-internet: oklch(0.68 0.06 170);
+    --expense-internet: #66c2a5;
 
-    --expense-other: oklch(0.7 0.015 260);
+    --expense-other: #b3b3b3;
 
     --sidebar: oklch(0.205 0 0);
 
