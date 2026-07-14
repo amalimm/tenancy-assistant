@@ -168,6 +168,11 @@ export function DashboardMonthlyUtilityStackChart({
 }: {
   data: MonthlyExpenseChartDatum[]
 }) {
+  const maxMonthlyExpense = Math.max(
+    ...data.map((month) => month.total),
+    0,
+  )
+
   return (
     <ChartContainer
       className="aspect-auto h-48 min-h-0 w-full xl:h-full"
@@ -183,6 +188,7 @@ export function DashboardMonthlyUtilityStackChart({
         <CartesianGrid horizontal={false} />
         <XAxis
           axisLine={false}
+          domain={[0, maxMonthlyExpense]}
           tickFormatter={formatAxisAmount}
           tickLine={false}
           tickMargin={8}

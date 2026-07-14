@@ -112,62 +112,73 @@ const absences = [
   },
 ]
 
-const cycles = [
+const utilitySeedMetadata = {
+  electricity: { label: "Electricity", provider: "SEB" },
+  internet: { label: "Internet", provider: "Unifi" },
+  other: { label: "Other", provider: "Household" },
+  water: { label: "Water", provider: "KWB" },
+}
+
+const monthlyCycleSeeds = [
   {
     endDate: "2026-01-31",
-    key: "2026-01-internet",
-    name: "Internet · Jan 2026",
-    provider: "Unifi",
-    startDate: "2026-01-01",
-    totalAmountCents: 12900,
-    utilityType: "internet",
+    month: "2026-01",
+    utilities: { electricity: 12340, internet: 12900, other: 2500, water: 4580 },
   },
   {
     endDate: "2026-02-28",
-    key: "2026-02-electricity",
-    name: "Electricity · Feb 2026",
-    provider: "SEB",
-    startDate: "2026-02-01",
-    totalAmountCents: 14120,
-    utilityType: "electricity",
+    month: "2026-02",
+    utilities: { electricity: 14120, internet: 12900, other: 1800, water: 4720 },
   },
   {
     endDate: "2026-03-31",
-    key: "2026-03-water",
-    name: "Water · Mar 2026",
-    provider: "KWB",
-    startDate: "2026-03-01",
-    totalAmountCents: 5320,
-    utilityType: "water",
+    month: "2026-03",
+    utilities: { electricity: 13860, internet: 12900, other: 3200, water: 5320 },
   },
   {
     endDate: "2026-04-30",
-    key: "2026-04-electricity",
-    name: "Electricity · Apr 2026",
-    provider: "SEB",
-    startDate: "2026-04-01",
-    totalAmountCents: 13240,
-    utilityType: "electricity",
+    month: "2026-04",
+    utilities: { electricity: 13240, internet: 12900, other: 2100, water: 4890 },
   },
   {
     endDate: "2026-05-31",
-    key: "2026-05-internet",
-    name: "Internet · May 2026",
-    provider: "Unifi",
-    startDate: "2026-05-01",
-    totalAmountCents: 12900,
-    utilityType: "internet",
+    month: "2026-05",
+    utilities: { electricity: 14980, internet: 12900, other: 2750, water: 5080 },
   },
   {
     endDate: "2026-06-30",
-    key: "2026-06-water",
-    name: "Water · Jun 2026",
-    provider: "KWB",
-    startDate: "2026-06-01",
-    totalAmountCents: 4970,
-    utilityType: "water",
+    month: "2026-06",
+    utilities: { electricity: 15820, internet: 12900, other: 1950, water: 4970 },
   },
-].map((cycle) => ({ ...cycle, id: seedId(`cycle-${cycle.key}`) }))
+  {
+    endDate: "2026-07-31",
+    month: "2026-07",
+    utilities: { internet: 12900, other: 2300, water: 5210 },
+  },
+]
+
+const cycles = monthlyCycleSeeds.flatMap((monthSeed) =>
+  Object.entries(monthSeed.utilities).map(([utilityType, totalAmountCents]) => {
+    const metadata = utilitySeedMetadata[utilityType]
+    const key = `${monthSeed.month}-${utilityType}`
+    const monthLabel = new Intl.DateTimeFormat("en", {
+      month: "short",
+      timeZone: "UTC",
+      year: "numeric",
+    }).format(new Date(`${monthSeed.month}-01T00:00:00Z`))
+
+    return {
+      endDate: monthSeed.endDate,
+      id: seedId(`cycle-${key}`),
+      key,
+      name: `${metadata.label} · ${monthLabel}`,
+      provider: metadata.provider,
+      startDate: `${monthSeed.month}-01`,
+      totalAmountCents,
+      utilityType,
+    }
+  }),
+)
 
 const cycleByKey = new Map(cycles.map((cycle) => [cycle.key, cycle]))
 const allocations = [

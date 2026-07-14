@@ -13,6 +13,7 @@ interface MockChartProps {
   }
   children?: ReactNode
   cursor?: boolean
+  domain?: readonly (number | string)[]
   isAnimationActive?: boolean | "auto"
   portal?: HTMLElement | null
   shared?: boolean
@@ -23,6 +24,11 @@ interface MockChartProps {
 
 vi.mock("recharts", () => {
   const Primitive = ({ children }: MockChartProps) => <div>{children}</div>
+  const MockXAxis = ({ children, domain }: MockChartProps) => (
+    <div data-domain={JSON.stringify(domain)} data-testid="x-axis">
+      {children}
+    </div>
+  )
 
   return {
     Bar: Primitive,
@@ -30,7 +36,7 @@ vi.mock("recharts", () => {
     CartesianGrid: Primitive,
     Line: Primitive,
     LineChart: Primitive,
-    XAxis: Primitive,
+    XAxis: MockXAxis,
     YAxis: Primitive,
   }
 })
@@ -92,7 +98,9 @@ describe("dashboard charts", () => {
     render(<DashboardMonthlyUtilityStackChart data={expenseData} />)
 
     const tooltip = screen.getByTestId("chart-tooltip")
+    const xAxis = screen.getByTestId("x-axis")
 
+    expect(xAxis).toHaveAttribute("data-domain", "[0,265]")
     expect(tooltip).toHaveAttribute("data-is-animation-active", "false")
     expect(tooltip).toHaveAttribute("data-pointer-events", "none")
     expect(tooltip).toHaveAttribute("data-allow-escape-x", "true")
