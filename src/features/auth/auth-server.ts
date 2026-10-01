@@ -1,13 +1,27 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter"
 import { betterAuth } from "better-auth"
+import { APIError, createAuthMiddleware } from "better-auth/api"
 import { admin } from "better-auth/plugins"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
-import { env } from "@config/env"
+import { demoLogin, env } from "@config/env"
 import { db } from "@db/client"
 import { USER_ROLE, type UserRole } from "@db/schema"
 import * as schema from "@db/schema"
+
+// Endpoints that would let one demo visitor lock the shared demo account
+// out for everyone else until the nightly reset.
+const DEMO_BLOCKED_PATHS = new Set([
+  "/change-password",
+  "/delete-user",
+  "/update-user",
+  "/admin/ban-user",
+  "/admin/impersonate-user",
+  "/admin/remove-user",
+  "/admin/revoke-user-sessions",
+  "/admin/set-role",
+])
 
 const resolveRoleForEmail = (email: string): UserRole =>
   env.adminEmails.includes(email.toLowerCase()) ? USER_ROLE.ADMIN : USER_ROLE.TENANT
@@ -62,6 +76,17 @@ export const auth = betterAuth({
         }),
       },
     },
+  },
+  // ponytail: path blocklist only; admin set-user-password on the demo account
+  // is still possible from devtools, the nightly reset repairs it.
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (demoLogin && DEMO_BLOCKED_PATHS.has(ctx.path)) {
+        throw new APIError("FORBIDDEN", {
+          message: "This action is disabled in the demo.",
+        })
+      }
+    }),
   },
 })
 

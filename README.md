@@ -62,6 +62,19 @@ npm run db:migrate
 npm run dev
 ```
 
+## Public demo
+
+A separate Vercel project runs this app against its own Turso database,
+`tenancy-assistant-demo`, which holds only sample data. Setting
+`DEMO_MODE=true`, `DEMO_EMAIL` and `DEMO_PASSWORD` replaces the sign-in tabs
+with a one-click "Try the demo" button and blocks password, profile and admin
+account changes. Put `DEMO_EMAIL` in `ADMIN_EMAILS` too, so the demo user stays
+an admin.
+
+`.github/workflows/demo-reset.yml` migrates the demo database and runs
+`scripts/demo-reset.mjs` every night, which wipes it and reseeds the sample
+house. The script refuses any database URL that is not the demo database.
+
 ## Scripts
 
 - `npm run lint` - Oxlint with warnings denied

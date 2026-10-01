@@ -7,6 +7,9 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().optional().default("dev-secret-change-me"),
   BETTER_AUTH_URL: z.string().optional().default("http://localhost:3000"),
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
+  DEMO_EMAIL: z.string().optional().default(""),
+  DEMO_MODE: z.string().optional().default(""),
+  DEMO_PASSWORD: z.string().optional().default(""),
   GOOGLE_CLIENT_ID: z.string().optional().default(""),
   GOOGLE_CLIENT_SECRET: z.string().optional().default(""),
   TURSO_AUTH_TOKEN: z.string().optional(),
@@ -36,3 +39,12 @@ export const hasGoogleOAuthConfig =
   env.googleClientId.length > 0 && env.googleClientSecret.length > 0
 
 export const hasBlobConfig = Boolean(env.blobReadWriteToken)
+
+// Public demo deployment only: these credentials are shown to every visitor,
+// so they must point at the separate demo database, never production.
+export const demoLogin =
+  parsedEnv.DEMO_MODE === "true" &&
+  parsedEnv.DEMO_EMAIL.length > 0 &&
+  parsedEnv.DEMO_PASSWORD.length > 0
+    ? { email: parsedEnv.DEMO_EMAIL, password: parsedEnv.DEMO_PASSWORD }
+    : null
