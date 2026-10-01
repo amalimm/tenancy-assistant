@@ -1,0 +1,29 @@
+name: Reset public demo
+
+on:
+  schedule:
+    - cron: "0 18 * * *" # 02:00 Malaysia time
+  push:
+    branches: [main]
+    paths: ["drizzle/**", "scripts/seed.mjs", "scripts/demo-reset.mjs"]
+  workflow_dispatch:
+
+concurrency: demo-reset
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    env:
+      TURSO_DATABASE_URL: ${{ secrets.DEMO_TURSO_DATABASE_URL }}
+      TURSO_AUTH_TOKEN: ${{ secrets.DEMO_TURSO_AUTH_TOKEN }}
+      DEMO_EMAIL: ${{ secrets.DEMO_EMAIL }}
+      DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx drizzle-kit migrate
+      - run: node scripts/demo-reset.mjs

@@ -2,8 +2,9 @@ import { ArrowRight } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
-import { hasGoogleOAuthConfig } from "@config/env"
+import { demoLogin, hasGoogleOAuthConfig } from "@config/env"
 import { getSession } from "@features/auth/auth-server"
+import { DemoSignInButton } from "@features/auth/demo-sign-in-button"
 import { ThemeToggle } from "@shared/ui/theme-toggle"
 import { HomeAuthTabs } from "./home-auth-tabs"
 
@@ -76,6 +77,8 @@ export default async function HomePage() {
                   </Link>
                 </Button>
               </div>
+            ) : demoLogin ? (
+              <DemoSignInButton {...demoLogin} />
             ) : (
               <HomeAuthTabs hasGoogleOAuthConfig={hasGoogleOAuthConfig} />
             )}
